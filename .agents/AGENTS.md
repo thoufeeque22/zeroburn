@@ -23,7 +23,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 10. **Track Triage & Epic Sub-Issue Decomposition:**
     - **Track S / M (≤ 8–10 files, 1 PR):** Do NOT create GitHub sub-issues; keep fine-grained checklists in `ARTIFACT_DIR/plan.md`.
     - **Track L (Epic: > 2 phases or > 10 files):** At the end of `Discovery` (BEFORE coding), split into 2–4 vertical, independently mergeable **Native GitHub Sub-Issues** (`scripts/link-gh-subissue.sh`), each with its own blast radius, verification gate, and PR.
+    - **Strict Track L Decomposition Rule:** Any ticket OR epic sub-issue projected to exceed **12–15 files** MUST be decomposed into smaller vertical, independently mergeable sub-issues during Discovery BEFORE Dev begins.
     - **Mid-Coding Escape Hatch:** Only split during `Development` if blast radius expands > 30% or hits an unrelated prerequisite refactor -> spawn 1 linked sub-issue so the current PR stays small.
+11. **Stage 4 Audit Cap & Severity Blocking Policy:**
+    - **Hard Cap of 2 Audit Rounds:** Stage 4 (`Audit`) is capped at a **MAXIMUM of 2 rounds**. Round 1 evaluates the full diff; Round 2 evaluates **ONLY the remediation delta** against `previous_ref` (never the full diff). If `Critical`/`High` issues persist after Round 2, escalate to human decision instead of looping.
+    - **Severity Blocking Policy:** Only `Critical` and `High` security or data-integrity vulnerabilities can block PR progress (`FAIL`). `Medium`, `Low`, style, and lint nits MUST be logged to `.agents/incidental_observations.json` and deferred — never block PR closure.
 
 ## Subagent Registry & Model Routing
 
