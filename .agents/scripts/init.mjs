@@ -41,18 +41,23 @@ const PROSE_PATTERNS = [
 ];
 
 function loadPluginVersion(cwd) {
-  const p = path.join(cwd, '.agents', 'plugins', 'zeroburn', 'plugin.json');
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
-  if (fs.existsSync(p)) {
-    try {
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
-      const parsed = JSON.parse(fs.readFileSync(p, 'utf8'));
-      if (parsed.version) return parsed.version;
-    } catch {
-      // ignore
+  for (const rel of [
+    '.agents/plugins/zeroburn/plugin.json',
+    '.agents/plugins/zeroburn/plugin.json',
+  ]) {
+    const p = path.join(cwd, rel);
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    if (fs.existsSync(p)) {
+      try {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        const parsed = JSON.parse(fs.readFileSync(p, 'utf8'));
+        if (parsed.version) return parsed.version;
+      } catch {
+        // ignore
+      }
     }
   }
-  return 'unknown';
+  return '2.2.0';
 }
 
 function detectHardwareDefaults() {

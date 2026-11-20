@@ -7,14 +7,17 @@ import urllib.request
 
 
 def _load_plugin_version() -> str:
-    p = ".agents/plugins/zeroburn/plugin.json"
-    if os.path.isfile(p):
-        try:
-            with open(p, "r", encoding="utf-8") as fh:
-                return str(json.load(fh).get("version") or "unknown")
-        except Exception:
-            pass
-    return "unknown"
+    for candidate in (
+        ".agents/plugins/zeroburn/plugin.json",
+        ".agents/plugins/zeroburn/plugin.json",
+    ):
+        if os.path.isfile(candidate):
+            try:
+                with open(candidate, "r", encoding="utf-8") as fh:
+                    return str(json.load(fh).get("version") or "2.2.0")
+            except Exception:
+                pass
+    return "2.2.0"
 
 
 def _load_project_config() -> dict:
@@ -34,6 +37,7 @@ BRAND_NAME = PROJECT_CONFIG.get("brandName") or PROJECT_CONFIG.get("projectName"
 STACK_SUMMARY = PROJECT_CONFIG.get("stackSummary") or "Next.js App Router + TypeScript + Prisma"
 OLLAMA_URL = (PROJECT_CONFIG.get("ollamaUrl") or "http://127.0.0.1:11434").rstrip("/")
 MAX_LINES_PER_FILE = int(PROJECT_CONFIG.get("maxLinesPerFile") or 100)
+SWARM_LEASES_FILE = ".agents/swarm_leases.json"
 
 _CODER_PATTERNS = (
     "qwen3-coder",
@@ -64,7 +68,7 @@ _PROSE_PATTERNS = (
 )
 
 
-def _fetch_installed_ollama_models(timeout: float = 1.0) -> list[str]:
+def _fetch_installed_ollama_models(timeout: float = 1.0) -> list:
     try:
         req = urllib.request.Request(f"{OLLAMA_URL}/api/tags", method="GET")
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -74,7 +78,7 @@ def _fetch_installed_ollama_models(timeout: float = 1.0) -> list[str]:
         return []
 
 
-def _select_best_model(installed: list[str], configured: str, patterns: tuple[str, ...], fallback: str) -> str:
+def _select_best_model(installed: list, configured: str, patterns: tuple, fallback: str) -> str:
     if configured and configured.lower() != "auto":
         if not installed or configured in installed:
             return configured
@@ -178,16 +182,38 @@ GRAPH_MCP_CHEATSHEET = (
 )
 
 EXECUTION_EFFICIENCY_DIGEST = (
-    "[TOKEN & TURN EFFICIENCY RULES (TRICKS 1, 2, 5, 7)]\n"
+    "[TOKEN & TURN EFFICIENCY RULES (TRICKS 1, 2, 5, 7 + <=4 HANDOFF CAP)]\n"
     "1. Parallel Tool Batching: Batch all independent `read_file`, `edit_file`, and `call_mcp_tool` calls into 1 parallel turn; never make sequential 1-tool turns when targets are known.\n"
-    "2. Quiet CLI Wrapper: Run verification via `node .agents/scripts/quiet-cli.mjs <tsc|lint|unit|pr-check>` to emit 1-line summaries instead of 500-line test logs.\n"
+    "2. Quiet CLI + Judgment Kernel: Run verification via `node .agents/scripts/quiet-cli.mjs <tsc|lint|unit|pr-check|api-map>` to emit 1-line summaries (and local Ollama Judgment Kernel failure digests).\n"
     "3. Multi-File Codemods: For mechanical renames/imports across >=4 files, run a single 1-shot Python/Node transform script instead of N `edit_file` calls.\n"
     "4. Caveman Output Compression: Reply in terse caveman-compressed bullets / strict JSON (`file:line` + action/reason only; zero pleasantries or filler prose)."
 )
 
 
+def _scan_api_routes(api_root: str = "src/app/api") -> list:
+    if not os.path.isdir(api_root):
+        return []
+    routes = []
+    for root, _, files in os.walk(api_root):
+        for fname in files:
+            if fname in ("route.ts", "route.js"):
+                full = os.path.join(root, fname)
+                try:
+                    with open(full, "r", encoding="utf-8", errors="ignore") as fh:
+                        src = fh.read()
+                    methods = re.findall(
+                        r"export\s+(?:async\s+)?function\s+(GET|POST|PUT|PATCH|DELETE)\b", src
+                    )
+                    rel = full.replace("\\", "/")
+                    ep = "/" + re.sub(r"/route\.[tj]s$", "", re.sub(r"^src/app/", "", rel))
+                    routes.append(f"{'/'.join(methods) or 'HANDLER'} {ep}")
+                except Exception:
+                    continue
+    return sorted(routes)
+
+
 def build_repo_map_digest() -> str:
-    """0-token structural repo map driven by .agents/project.config.json."""
+    """0-token structural repo map + OpenAPI/App-Router endpoint map driven by .agents/project.config.json."""
     paths_cfg = PROJECT_CONFIG.get("paths") or {}
     schema_path = paths_cfg.get("schema") or "prisma/schema.prisma"
     lib_dir = paths_cfg.get("libDir") or "src/lib"
@@ -200,16 +226,63 @@ def build_repo_map_digest() -> str:
             models = re.findall(r"^model\s+(\w+)\s+\{", fh.read(), flags=re.MULTILINE)
     lib_dirs = sorted(os.listdir(lib_dir)) if os.path.isdir(lib_dir) else []
     actions = sorted(os.listdir(actions_dir)) if os.path.isdir(actions_dir) else []
+    api_routes = _scan_api_routes()
     return (
-        "[PRE-COMPUTED REPO_MAP_DIGEST — DO NOT run ls/find to locate core domains]\n"
+        "[PRE-COMPUTED REPO_MAP_DIGEST — DO NOT run ls/find to locate core domains or API routes]\n"
         f"- Prisma Models ({len(models)}): {', '.join(models)}\n"
         f"- {lib_dir}/* Domains: {', '.join(lib_dirs)}\n"
         f"- {actions_dir}/*: {', '.join(actions)}\n"
+        f"- API Routes ({len(api_routes)}): {', '.join(api_routes[:30])}{' ...' if len(api_routes) > 30 else ''}\n"
         f"- Core Singletons: `{singletons}`."
     )
 
 
 REPO_MAP_DIGEST = build_repo_map_digest()
+
+
+def claim_file_leases(worker_id: str, file_paths: list) -> dict:
+    """Pattern #4 (MercuryCLI/DeepCode): Claim exclusive file leases for parallel swarm/workflow workers."""
+    leases = {}
+    if os.path.isfile(SWARM_LEASES_FILE):
+        try:
+            with open(SWARM_LEASES_FILE, "r", encoding="utf-8") as fh:
+                leases = json.load(fh)
+        except Exception:
+            leases = {}
+    conflicts = []
+    for fp in file_paths:
+        norm = fp.strip().lstrip("./")
+        owner = leases.get(norm)
+        if owner and owner != worker_id:
+            conflicts.append(f"{norm} (already leased by {owner})")
+    if conflicts:
+        raise RuntimeError(f"SWARM_FILE_LEASE_CONFLICT for {worker_id}: {', '.join(conflicts)}")
+    for fp in file_paths:
+        leases[fp.strip().lstrip("./")] = worker_id
+    os.makedirs(os.path.dirname(SWARM_LEASES_FILE), exist_ok=True)
+    with open(SWARM_LEASES_FILE, "w", encoding="utf-8") as fh:
+        json.dump(leases, fh, indent=2)
+    return leases
+
+
+def release_file_leases(worker_id=None) -> None:
+    """Release file leases held by worker_id (or clear all leases if worker_id is None)."""
+    if not os.path.isfile(SWARM_LEASES_FILE):
+        return
+    if worker_id is None:
+        os.remove(SWARM_LEASES_FILE)
+        return
+    try:
+        with open(SWARM_LEASES_FILE, "r", encoding="utf-8") as fh:
+            leases = json.load(fh)
+        remaining = {k: v for k, v in leases.items() if v != worker_id}
+        if remaining:
+            with open(SWARM_LEASES_FILE, "w", encoding="utf-8") as fh:
+                json.dump(remaining, fh, indent=2)
+        else:
+            os.remove(SWARM_LEASES_FILE)
+    except Exception:
+        pass
 
 
 def _fetch_ollama_tags(timeout: float = 1.5) -> str:
@@ -270,7 +343,7 @@ async def ensure_local_ollama_up(log_fn, call_tool_fn=None, allow_cloud_only: bo
             raise RuntimeError(
                 f"HARD-STOP [LOCAL_OLLAMA_DOWN]: Tried auto-starting `ollama serve`, but "
                 f"Local Ollama ({OLLAMA_URL}) is still unreachable. Please verify Ollama is installed "
-                f"or pass allow_cloud_only=True to override."
+                "or pass allow_cloud_only=True to override."
             ) from exc
 
     if not raw_models:
@@ -306,7 +379,7 @@ async def ensure_local_ollama_up(log_fn, call_tool_fn=None, allow_cloud_only: bo
     if missing:
         raise RuntimeError(
             f"HARD-STOP [LOCAL_OLLAMA_MODELS_MISSING]: Missing required local Ollama models: {missing}. "
-            f"Run `node .agents/scripts/init.mjs` or `ollama pull {' && ollama pull '.join(missing)}` first."
+            f"Run `node .agents/scripts/init.mjs --pull` or `ollama pull {' && ollama pull '.join(missing)}` first."
         )
     log_fn(
         f"[Local-Ollama Gate] UP (coder={LOCAL_CODER_MODEL}, prose={LOCAL_PROSE_MODEL})."

@@ -31,8 +31,8 @@ track = args.get("track", "M")
 allow_cloud_only = bool(args.get("allow_cloud_only", False))
 
 
-def run_deterministic_static_audit(base: str):
-    """Option A: 0-token Python static check for modularity, 'use server' line 1, and added `any`."""
+def run_deterministic_static_audit(base: str, bp_path: str = ""):
+    """Option A + Pattern #3 (sofagent): 0-token Python static check for blast-radius drift, modularity, 'use server' line 1, and added `any`."""
     findings = []
     try:
         changed_raw = subprocess.check_output(
@@ -44,11 +44,23 @@ def run_deterministic_static_audit(base: str):
         )
     changed_files = [f.strip() for f in changed_raw.splitlines() if f.strip()]
 
+    blueprint_text = ""
+    if bp_path and os.path.isfile(bp_path):
+        with open(bp_path, "r", encoding="utf-8", errors="ignore") as bfh:
+            blueprint_text = bfh.read()
+
     for fpath in changed_files:
         if not os.path.isfile(fpath) or not fpath.startswith("src/"):
             continue
         if "__tests__" in fpath or fpath.endswith(".test.ts") or fpath.endswith(".spec.ts"):
             continue
+        if blueprint_text and fpath not in blueprint_text and os.path.basename(fpath) not in blueprint_text:
+            findings.append({
+                "auditor": "Static Zero-Token Guard (Blast Radius)",
+                "file_line": f"{fpath}:1",
+                "severity": "medium",
+                "reason": f"Out-of-scope file drift: `{fpath}` was modified but not declared in `{bp_path}`.",
+            })
         if not (fpath.endswith(".ts") or fpath.endswith(".tsx")):
             continue
         with open(fpath, "r", encoding="utf-8", errors="ignore") as fh:
@@ -162,7 +174,7 @@ call_tool_fn = globals().get("call_tool")
 await ensure_local_ollama_up(log, call_tool_fn, allow_cloud_only)
 
 phase("Stage 1: Zero-Token Static + Graph Impact + Local Ollama Audit")
-changed_files, static_findings = run_deterministic_static_audit(base_ref)
+changed_files, static_findings = run_deterministic_static_audit(base_ref, blueprint_path)
 graph_impact_digest = await prefetch_graph_impact(call_tool_fn, log, base_branch="main", depth=2)
 local_findings = await run_local_ollama_diff_audit(base_ref)
 log(f"Zero-Token Static findings: {len(static_findings)}, Local Ollama findings: {len(local_findings)}")

@@ -35,7 +35,6 @@ Single source of truth for identifiers, tracks, phases, verdicts, paths, and com
 - `Project`: `ISSUES_MANAGED` | `BLOCKED`
 
 ## Scripts & Commands
-- `INIT_CMD`: `node .agents/scripts/init.mjs` (`--pull` to auto-pull hardware-matched local Ollama models; `--pin` to pin resolved tags in `.agents/project.config.json`)
 - `QUIET_CLI_CMD`: `node .agents/scripts/quiet-cli.mjs` (`tsc` | `lint` | `unit` | `pr-check` — 1-line summary on pass, 35-line cap on fail)
 - `LINT_CMD`: `pnpm lint`
 - `TYPE_CHECK_CMD`: `npx tsc --noEmit`
