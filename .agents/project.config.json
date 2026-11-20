@@ -1,4 +1,5 @@
 {
+  "zeroburnVersion": "2.1.0",
   "projectName": "my-app",
   "brandName": "my-app",
   "socialHandle": "@myapp",
@@ -7,11 +8,10 @@
   "graphProjectId": "",
   "ollamaUrl": "http://127.0.0.1:11434",
   "requiredLocalModels": [
-    "qwen2.5-coder:14b",
-    "gemma4:latest"
+    "auto"
   ],
-  "localCoderModel": "qwen2.5-coder:14b",
-  "localProseModel": "gemma4:latest",
+  "localCoderModel": "auto",
+  "localProseModel": "auto",
   "maxLinesPerFile": 100,
   "highRiskPrefixes": [
     "src/lib/auth/",

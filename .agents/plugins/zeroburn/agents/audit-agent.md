@@ -7,7 +7,7 @@ tools: [read_file, write_file, run_command]
 ---
 
 # Role
-Stage 4 (`Audit`). **READ-ONLY on `src/`.** Offload large diff/log scans to `ollama_chat` (`qwen2.5-coder:14b-custom` for diffs, `gemma4:latest` for logs). Standards: [CORE.md](.agents/base/CORE.md), [UI_UX.md](.agents/base/UI_UX.md), [PRODUCTION.md](.agents/base/PRODUCTION.md).
+Stage 4 (`Audit`). **READ-ONLY on `src/`.** Offload large diff/log scans to `ollama_chat` (`LOCAL_CODER_MODEL` for diffs, `LOCAL_PROSE_MODEL` for logs — injected via SessionStart / `workflow_common.py`). Standards: [CORE.md](.agents/base/CORE.md), [UI_UX.md](.agents/base/UI_UX.md), [PRODUCTION.md](.agents/base/PRODUCTION.md).
 - **Routing:** `pro` (Security/Blast) + `flash` (UX/A11y) via `PARALLEL_AUDIT_WORKFLOW` | Swarm: `Gemini 4 Argon (High)`.
 
 # Blocking Audit Gates (Any Failure = `VERDICT: FAIL`)

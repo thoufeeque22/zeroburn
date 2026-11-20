@@ -6,6 +6,17 @@ import time
 import urllib.request
 
 
+def _load_plugin_version() -> str:
+    p = ".agents/plugins/zeroburn/plugin.json"
+    if os.path.isfile(p):
+        try:
+            with open(p, "r", encoding="utf-8") as fh:
+                return str(json.load(fh).get("version") or "unknown")
+        except Exception:
+            pass
+    return "unknown"
+
+
 def _load_project_config() -> dict:
     for candidate in (".agents/project.config.json", ".agents/project.config.example.json"):
         if os.path.isfile(candidate):
@@ -18,19 +29,85 @@ def _load_project_config() -> dict:
 
 
 PROJECT_CONFIG = _load_project_config()
+ZEROBURN_VERSION = _load_plugin_version()
 BRAND_NAME = PROJECT_CONFIG.get("brandName") or PROJECT_CONFIG.get("projectName") or "project"
 STACK_SUMMARY = PROJECT_CONFIG.get("stackSummary") or "Next.js App Router + TypeScript + Prisma"
 OLLAMA_URL = (PROJECT_CONFIG.get("ollamaUrl") or "http://127.0.0.1:11434").rstrip("/")
 MAX_LINES_PER_FILE = int(PROJECT_CONFIG.get("maxLinesPerFile") or 100)
 
-REQUIRED_LOCAL_MODELS = tuple(
-    PROJECT_CONFIG.get("requiredLocalModels") or ("qwen2.5-coder:14b-custom", "gemma4:latest")
+_CODER_PATTERNS = (
+    "qwen3-coder",
+    "qwen2.5-coder",
+    "qwen-coder",
+    "deepseek-coder",
+    "codellama",
+    "starcoder",
+    "codestral",
+    "coder",
+    "qwen3",
+    "qwen2.5",
+    "deepseek",
+    "llama3",
+    "gemma4",
+    "gemma3",
 )
-LOCAL_CODER_MODEL = PROJECT_CONFIG.get("localCoderModel") or REQUIRED_LOCAL_MODELS[0]
-LOCAL_PROSE_MODEL = (
-    PROJECT_CONFIG.get("localProseModel")
-    or (REQUIRED_LOCAL_MODELS[1] if len(REQUIRED_LOCAL_MODELS) > 1 else REQUIRED_LOCAL_MODELS[0])
+_PROSE_PATTERNS = (
+    "gemma4",
+    "gemma3",
+    "gemma2",
+    "llama3",
+    "mistral",
+    "qwen3",
+    "qwen2.5",
+    "phi4",
+    "phi3",
 )
+
+
+def _fetch_installed_ollama_models(timeout: float = 1.0) -> list[str]:
+    try:
+        req = urllib.request.Request(f"{OLLAMA_URL}/api/tags", method="GET")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = json.loads(resp.read().decode("utf-8", errors="ignore"))
+            return [m.get("name", "") for m in body.get("models", []) if m.get("name")]
+    except Exception:
+        return []
+
+
+def _select_best_model(installed: list[str], configured: str, patterns: tuple[str, ...], fallback: str) -> str:
+    if configured and configured.lower() != "auto":
+        if not installed or configured in installed:
+            return configured
+        base = configured.split(":")[0]
+        for m in installed:
+            if m.split(":")[0] == base:
+                return m
+        return configured
+    for pat in patterns:
+        for m in installed:
+            if pat in m.lower():
+                return m
+    return installed[0] if installed else fallback
+
+
+_INSTALLED_MODELS = _fetch_installed_ollama_models()
+LOCAL_CODER_MODEL = _select_best_model(
+    _INSTALLED_MODELS,
+    str(PROJECT_CONFIG.get("localCoderModel") or "auto"),
+    _CODER_PATTERNS,
+    "qwen2.5-coder:7b",
+)
+LOCAL_PROSE_MODEL = _select_best_model(
+    _INSTALLED_MODELS,
+    str(PROJECT_CONFIG.get("localProseModel") or "auto"),
+    _PROSE_PATTERNS,
+    LOCAL_CODER_MODEL or "gemma4:latest",
+)
+_raw_req = PROJECT_CONFIG.get("requiredLocalModels")
+if not _raw_req or _raw_req == ["auto"] or _raw_req == "auto":
+    REQUIRED_LOCAL_MODELS = tuple(dict.fromkeys([LOCAL_CODER_MODEL, LOCAL_PROSE_MODEL]))
+else:
+    REQUIRED_LOCAL_MODELS = tuple(_raw_req)
 
 # Auto-compute codebase-memory-mcp project slug from cwd if not explicitly configured
 GRAPH_PROJECT = (
@@ -202,13 +279,38 @@ async def ensure_local_ollama_up(log_fn, call_tool_fn=None, allow_cloud_only: bo
             f"and {OLLAMA_URL} is still unreachable."
         )
 
+    global LOCAL_CODER_MODEL, LOCAL_PROSE_MODEL, REQUIRED_LOCAL_MODELS
+    try:
+        parsed_tags = json.loads(raw_models)
+        live_models = [m.get("name", "") for m in parsed_tags.get("models", []) if m.get("name")]
+    except Exception:
+        live_models = _fetch_installed_ollama_models()
+
+    if live_models:
+        LOCAL_CODER_MODEL = _select_best_model(
+            live_models,
+            str(PROJECT_CONFIG.get("localCoderModel") or "auto"),
+            _CODER_PATTERNS,
+            "qwen2.5-coder:7b",
+        )
+        LOCAL_PROSE_MODEL = _select_best_model(
+            live_models,
+            str(PROJECT_CONFIG.get("localProseModel") or "auto"),
+            _PROSE_PATTERNS,
+            LOCAL_CODER_MODEL,
+        )
+        if not _raw_req or _raw_req == ["auto"] or _raw_req == "auto":
+            REQUIRED_LOCAL_MODELS = tuple(dict.fromkeys([LOCAL_CODER_MODEL, LOCAL_PROSE_MODEL]))
+
     missing = [m for m in REQUIRED_LOCAL_MODELS if m.split(":")[0] not in raw_models]
     if missing:
         raise RuntimeError(
             f"HARD-STOP [LOCAL_OLLAMA_MODELS_MISSING]: Missing required local Ollama models: {missing}. "
-            f"Run `ollama pull {' && ollama pull '.join(missing)}` first."
+            f"Run `node .agents/scripts/init.mjs` or `ollama pull {' && ollama pull '.join(missing)}` first."
         )
-    log_fn("[Local-Ollama Gate] UP and verified required local models.")
+    log_fn(
+        f"[Local-Ollama Gate] UP (coder={LOCAL_CODER_MODEL}, prose={LOCAL_PROSE_MODEL})."
+    )
 
 
 async def prefetch_graph_search(call_tool_fn, log_fn, query: str, limit: int = 12) -> str:

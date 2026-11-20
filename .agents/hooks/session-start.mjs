@@ -2,6 +2,21 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync, spawn } from 'node:child_process';
 
+function loadPluginVersion(cwd) {
+  const p = path.join(cwd, '.agents', 'plugins', 'zeroburn', 'plugin.json');
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  if (fs.existsSync(p)) {
+    try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      const parsed = JSON.parse(fs.readFileSync(p, 'utf8'));
+      if (parsed.version) return parsed.version;
+    } catch {
+      // fallback
+    }
+  }
+  return 'unknown';
+}
+
 function loadProjectConfig(cwd) {
   for (const rel of ['.agents/project.config.json', '.agents/project.config.example.json']) {
     const p = path.join(cwd, rel);
@@ -23,32 +38,88 @@ function runGit(cwd, args) {
   return execFileSync('git', args, { cwd, encoding: 'utf8', timeout: 3000 }).trim();
 }
 
-function isOllamaReachable(ollamaUrl) {
+function fetchOllamaModels(ollamaUrl) {
   try {
     // eslint-disable-next-line sonarjs/no-os-command-from-path
-    execFileSync('curl', ['-sf', '--max-time', '1', `${ollamaUrl}/api/tags`], {
+    const out = execFileSync('curl', ['-sf', '--max-time', '1', `${ollamaUrl}/api/tags`], {
       encoding: 'utf8',
       timeout: 1500,
     });
-    return true;
+    const parsed = JSON.parse(out);
+    return Array.isArray(parsed.models)
+      ? parsed.models.map((m) => m.name).filter(Boolean)
+      : [];
   } catch {
-    return false;
+    return null;
   }
 }
 
-function checkOrStartOllama(ollamaUrl) {
-  if (isOllamaReachable(ollamaUrl)) return 'UP';
-  try {
-    // Attempt non-blocking background auto-start of ollama serve
-    // eslint-disable-next-line sonarjs/no-os-command-from-path
-    const child = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore' });
-    child.unref();
-    // eslint-disable-next-line sonarjs/no-os-command-from-path
-    execFileSync('sleep', ['1'], { timeout: 1500 });
-    return isOllamaReachable(ollamaUrl) ? 'UP (auto-started)' : 'STARTING (auto-spawned `ollama serve`)';
-  } catch {
-    return 'DOWN (HARD-STOP if workflow auto-start fails)';
+const CODER_PATTERNS = [
+  'qwen3-coder',
+  'qwen2.5-coder',
+  'qwen-coder',
+  'deepseek-coder',
+  'codellama',
+  'starcoder',
+  'codestral',
+  'coder',
+  'qwen3',
+  'qwen2.5',
+  'deepseek',
+  'llama3',
+  'gemma4',
+  'gemma3',
+];
+
+const PROSE_PATTERNS = [
+  'gemma4',
+  'gemma3',
+  'gemma2',
+  'llama3',
+  'mistral',
+  'qwen3',
+  'qwen2.5',
+  'phi4',
+  'phi3',
+];
+
+function selectBestModel(installed, configured, patterns, fallback) {
+  if (configured && configured.toLowerCase() !== 'auto') {
+    if (!installed || installed.length === 0 || installed.includes(configured)) return configured;
+    const base = configured.split(':')[0];
+    const match = installed.find((m) => m.split(':')[0] === base);
+    return match || configured;
   }
+  if (installed && installed.length > 0) {
+    for (const pat of patterns) {
+      const found = installed.find((m) => m.toLowerCase().includes(pat));
+      if (found) return found;
+    }
+    return installed[0];
+  }
+  return fallback;
+}
+
+function checkOrStartOllama(ollamaUrl, cfg) {
+  let models = fetchOllamaModels(ollamaUrl);
+  let state = 'UP';
+  if (models === null) {
+    try {
+      // Attempt non-blocking background auto-start of ollama serve
+      // eslint-disable-next-line sonarjs/no-os-command-from-path
+      const child = spawn('ollama', ['serve'], { detached: true, stdio: 'ignore' });
+      child.unref();
+      // eslint-disable-next-line sonarjs/no-os-command-from-path
+      execFileSync('sleep', ['1'], { timeout: 1500 });
+      models = fetchOllamaModels(ollamaUrl);
+      state = models !== null ? 'UP (auto-started)' : 'STARTING (auto-spawned `ollama serve`)';
+    } catch {
+      return { status: 'DOWN (HARD-STOP if workflow auto-start fails)', coder: 'none', prose: 'none' };
+    }
+  }
+  const coder = selectBestModel(models || [], cfg.localCoderModel || 'auto', CODER_PATTERNS, 'qwen2.5-coder:7b');
+  const prose = selectBestModel(models || [], cfg.localProseModel || 'auto', PROSE_PATTERNS, coder);
+  return { status: state, coder, prose };
 }
 
 function getPendingObservations(cwd) {
@@ -83,11 +154,14 @@ function main() {
     const dirtyOut = runGit(cwd, ['status', '--porcelain']);
     const dirtyCount = dirtyOut ? dirtyOut.split('\n').filter(Boolean).length : 0;
     const obsCount = getPendingObservations(cwd);
-    const ollamaStatus = checkOrStartOllama(ollamaUrl);
+    const ollama = checkOrStartOllama(ollamaUrl, cfg);
+    const version = loadPluginVersion(cwd);
+    const cfgVersion = cfg.zeroburnVersion || version;
+    const driftNote = cfgVersion !== version ? ` [config=${cfgVersion}->run init.mjs]` : '';
     const zeroburnSync = hasOrchChanges(cwd)
       ? 'PENDING (export & push ../zeroburn via `node .agents/scripts/export-public-orchestrator.mjs ../zeroburn`)'
       : 'CLEAN';
-    const msg = `Workspace context: branch=${branch}, dirty_files=${dirtyCount}, pending_observations=${obsCount}, local_ollama=${ollamaStatus}, graph_project=${graphProject}, zeroburn_sync=${zeroburnSync}. Efficiency rules: (1) Query codebase-memory-mcp directly with project="${graphProject}" (skip list_projects & full-file reads), (2) Batch independent tool calls in parallel turns, (3) Use \`node .agents/scripts/quiet-cli.mjs <tsc|lint|unit|pr-check>\` for 1-line verification logs, (4) Follow Hybrid Quota Policy (Options A+B+C) in .agents/base/ORCHESTRATION.md.`;
+    const msg = `Workspace context: zeroburn=v${version}${driftNote}, branch=${branch}, dirty_files=${dirtyCount}, pending_observations=${obsCount}, local_ollama=${ollama.status} (coder=${ollama.coder}, prose=${ollama.prose}), graph_project=${graphProject}, zeroburn_sync=${zeroburnSync}. Efficiency rules: (1) Query codebase-memory-mcp directly with project="${graphProject}" (skip list_projects & full-file reads), (2) Batch independent tool calls in parallel turns, (3) Use \`node .agents/scripts/quiet-cli.mjs <tsc|lint|unit|pr-check>\` for 1-line verification logs, (4) Follow Hybrid Quota Policy (Options A+B+C) in .agents/base/ORCHESTRATION.md.`;
     process.stdout.write(JSON.stringify({ injectSteps: [{ systemMessage: { systemMessage: msg } }] }));
   } catch {
     process.stdout.write('{}');
