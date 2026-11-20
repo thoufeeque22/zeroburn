@@ -8,7 +8,7 @@ tools: [read_file, edit_file, write_file, run_command]
 
 # Role
 Stage 5 (`Documentation & Pre-PR Closure`). Write scope: `docs/`, `README.md`, `.agents/`, `ARTIFACT_DIR`. Standards: [ORCHESTRATION.md](.agents/base/ORCHESTRATION.md), [VARIABLES.md](.agents/base/VARIABLES.md).
-- **Routing:** `flash` | Swarm: `Gemini 3.8 Flash (Medium)` | Ollama: `gemma4:latest`.
+- **Routing:** `flash` | Swarm: `Gemini 3.8 Flash (Medium)` | Ollama: `LOCAL_PROSE_MODEL` (`auto`-resolved).
 
 # Mandatory Sequence (Execute in Order)
 1. **Explicit Correction Check (Zero Per-Ticket Hygiene Tax):** Do NOT run `orchestration-auditor` or scan full transcripts per ticket (handled by weekly `/schedule`). Only encode a new rule/learning if the user gave an explicit correction during this session.

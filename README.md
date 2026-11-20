@@ -26,9 +26,9 @@ Most multi-agent setups ("PM / Architect / Dev / QA prompt packs") drain your 5-
 
 ## How It Works (7 Zero-Waste Mechanisms)
 
-1. **Single Declarative Config (`.agents/project.config.json`):** Configure your stack, local Ollama models (`qwen2.5-coder`, `gemma4`), high-risk paths, and modularity limits in one JSON file.
+1. **Single Declarative Config & Dynamic Local Model Resolution (`.agents/project.config.json`):** Set `"localCoderModel": "auto"` and `"localProseModel": "auto"` to automatically detect and use whichever coder (`qwen*-coder`, `deepseek-coder`, `codellama`, `starcoder`) and prose (`gemma*`, `llama*`, `mistral*`, `phi*`) models are already installed in local Ollama — or pin specific tags per repo.
 2. **Auto-Start & Fail-Closed Local Ollama Gate (`session-start.mjs` & `workflow_common.py`):**
-   - Automatically starts `ollama serve` in the background if `127.0.0.1:11434` is down and hard-stops workflows if local models are missing—preventing silent fallback to expensive cloud pools.
+   - Automatically starts `ollama serve` in the background if `127.0.0.1:11434` is down, dynamically resolves installed models from `/api/tags`, and hard-stops workflows only if no local model is reachable—preventing silent fallback to expensive cloud pools.
 3. **0-Token Knowledge Graph Pre-Fetch (`codebase-memory-mcp`):**
    - Pre-fetches top symbol coordinates (`file:start-end`) before Discovery and 2-hop impacted call-graph nodes (`detect_changes`) before Audit in **0 LLM tokens**.
 4. **Inlined Rule Digests & Dynamic `REPO_MAP_DIGEST`:**
@@ -45,9 +45,10 @@ Most multi-agent setups ("PM / Architect / Dev / QA prompt packs") drain your 5-
 ## Repository Layout
 
 ```text
+CHANGELOG.md                        # Version history & upgrade notes
 .agents/
 ├── AGENTS.md                       # Global management policies & Subagent Registry
-├── project.config.json             # Single declarative config customized per repository
+├── project.config.json             # Single declarative config (stamps zeroburnVersion)
 ├── project.config.example.json     # Starter template
 ├── hooks.json                      # SessionStart & PreToolUse safety hooks
 ├── base/
@@ -57,31 +58,35 @@ Most multi-agent setups ("PM / Architect / Dev / QA prompt packs") drain your 5-
 │   ├── UI_UX.md                    # Design system, ergonomics, a11y, microcopy
 │   └── VARIABLES.md                # Canonical paths, commands, verdicts
 ├── hooks/
-│   ├── session-start.mjs           # Git + Auto-Start Local Ollama + Graph banner
+│   ├── session-start.mjs           # Git + Version + Auto-Start Local Ollama + Graph banner
 │   └── pre-tool-guard.mjs          # Secret guard, 100-line guard, main-branch protection
 ├── scripts/
-│   ├── workflow_common.py          # Shared FALLBACK_CHAINS, Ollama auto-start, Graph pre-fetch
+│   ├── init.mjs                    # 1-command auto-detector & version upgrader (--pull, --pin, --version)
+│   ├── workflow_common.py          # Shared FALLBACK_CHAINS, dynamic Ollama resolution, Graph pre-fetch
 │   ├── parallel-discovery.py       # Stage 1: Product || Discovery workflow
 │   ├── parallel-audit.py           # Stage 4: 0-token Python + Local Ollama + 1 Cloud Auditor
 │   └── quiet-cli.mjs               # 1-line tsc / lint / vitest wrapper
 └── plugins/
     └── zeroburn/
-        ├── plugin.json             # Native plugin manifest
+        ├── plugin.json             # Single source of truth for ZeroBurn version (v2.1.0)
         └── agents/                 # 8 specialized subagent definitions
 ```
 
 ---
 
-## Quick Start
+## Quick Start (1 Command)
 
-1. Copy `.agents/` into your repository root.
-2. Customize `.agents/project.config.json` for your repository paths and local Ollama models.
-3. Ensure local Ollama models are pulled:
-   ```bash
-   ollama pull qwen2.5-coder:14b
-   ollama pull gemma4:latest
-   ```
-4. Use `node .agents/scripts/quiet-cli.mjs pr-check` for zero-noise agent verification.
+Copy `.agents/` into your repository root and run the auto-initializer:
+
+```bash
+node .agents/scripts/init.mjs --pull
+```
+
+What `init.mjs` does automatically:
+1. **Auto-Detects Your Stack & Paths:** Scans `package.json`, `tsconfig.json`, `prisma/schema.prisma`, `src/lib`, and `src/app/actions` to populate `.agents/project.config.json`.
+2. **Dynamic Local Model Resolution (`"auto"`):** Queries local Ollama (`/api/tags`) and uses any coder/prose models you **already have installed** (`qwen*-coder`, `deepseek-coder`, `codellama`, `gemma*`, `llama*`, `mistral*`, etc.) with zero config edits.
+3. **Hardware-Aware Auto-Pull (`--pull`):** Only if no suitable local model is installed yet, detects your machine's RAM (`<24GB` → `7b`, `>=24GB` → `14b`) and pulls the right model automatically (pass `--pin` if you want to lock exact tags in `project.config.json`).
+4. **Zero-Noise Verification:** Run `node .agents/scripts/quiet-cli.mjs pr-check` for 1-line agent verification receipts.
 
 ---
 
