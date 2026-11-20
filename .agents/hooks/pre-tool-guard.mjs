@@ -65,6 +65,26 @@ function checkUiAndSizeRules(toolName, args, norm, base, content) {
   return null;
 }
 
+function checkSwarmFileLease(norm, cwd) {
+  const workerId = process.env.SWARM_WORKER_ID;
+  if (!workerId) return null;
+  const leasePath = path.join(cwd, '.agents', 'swarm_leases.json');
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  if (!fs.existsSync(leasePath)) return null;
+  try {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    const leases = JSON.parse(fs.readFileSync(leasePath, 'utf8'));
+    const rel = path.relative(cwd, norm).replace(/\\/g, '/');
+    const owner = leases[rel];
+    if (owner && owner !== workerId) {
+      return `Blocked by Swarm File-Lease Guard: ${rel} is exclusively leased by swarm worker "${owner}" (current worker: "${workerId}").`;
+    }
+  } catch {
+    // ignore malformed lease file
+  }
+  return null;
+}
+
 function checkFileWrite(toolName, args, cwd) {
   const rawPath = typeof args.Path === 'string' ? args.Path : '';
   const content = getWriteContent(args);
@@ -75,6 +95,7 @@ function checkFileWrite(toolName, args, cwd) {
 
   return (
     checkRestrictedPaths(norm, rawNorm, absTarget, cwd, base) ??
+    checkSwarmFileLease(norm, cwd) ??
     checkUiAndSizeRules(toolName, args, norm, base, content)
   );
 }

@@ -8,7 +8,7 @@
 The user grants standing authorization for the Orchestrator to enforce the **Hybrid Quota-Conservation Policy** across all stages:
 
 - **Auto-Start & Fail-Closed Local Ollama Gate:**
-  - Before starting Stage 1 (`Product || Discovery`), Stage 2 (`Dev` diff/boilerplate offload), or Stage 4 (`Audit`), local Ollama (`127.0.0.1:11434`) MUST be running with dynamic `LOCAL_CODER_MODEL` and `LOCAL_PROSE_MODEL` resolved from `/api/tags` (or explicit overrides in `.agents/project.config.json`).
+  - Before starting Stage 1 (`Product || Discovery`), Stage 2 (`Dev` diff/boilerplate offload), or Stage 4 (`Audit`), local Ollama (`127.0.0.1:11434`) MUST be running with `qwen2.5-coder:14b-custom` and `gemma4:latest` available.
   - Both [.agents/hooks/session-start.mjs](.agents/hooks/session-start.mjs) and `ensure_local_ollama_up()` in [.agents/scripts/workflow_common.py](.agents/scripts/workflow_common.py) **automatically start `ollama serve` in the background** (`ollama serve` / `open -g -a Ollama`) and poll for up to 10s when `127.0.0.1:11434` is down.
   - Only if auto-start fails after 10s (or required local models are not pulled) do `parallel-discovery.py`, `parallel-audit.py`, and the Orchestrator **HARD-STOP** rather than silently burning cloud quota (unless `allow_cloud_only=True` is explicitly approved).
 - **Option A — Zero-Token Static Pre-Checks + Graph Pre-Fetch + Local Ollama Offload + 1 Consolidated Cloud Auditor:**
@@ -17,9 +17,9 @@ The user grants standing authorization for the Orchestrator to enforce the **Hyb
     - `parallel-discovery.py` pre-fetches top matching graph nodes via `codebase-memory-mcp` -> `search_graph(project="<your-graph-project-id>", query=summary, limit=15, include_connected=True)` in **0 LLM tokens** and injects exact `file_path:start_line-end_line` + `qualified_name` coordinates into the `discovery-agent` prompt.
     - `parallel-audit.py` pre-fetches 2-hop impacted call-graph symbols via `codebase-memory-mcp` -> `detect_changes(project="<your-graph-project-id>", base_branch="main", depth=2)` in **0 LLM tokens** and injects them into the `audit-agent` prompt.
     - `workflow_common.py` injects pre-compressed digests of `CORE.md`, `PRODUCTION.md`, `UI_UX.md`, and the `GRAPH_MCP_CHEATSHEET` directly into subagent prompts so subagents never spend tool turns calling `read_file` on `.agents/base/*.md`, reading lazy MCP schema JSONs, calling `list_projects`, or reading full source files when a symbol snippet (`get_code_snippet` or `StartLine..EndLine`) suffices.
-  - **Dynamic Local Ollama Offloading (`ollama_chat` / `127.0.0.1:11434`):**
-    - `LOCAL_CODER_MODEL` (`"auto"` resolves best installed coder model: `qwen*-coder`, `deepseek-coder`, `codellama`, `starcoder`, etc.): mandatory first-pass git diff review in `parallel-audit.py`, privacy-sensitive `.env*`/secrets inspection, and boilerplate/unit-test drafting.
-    - `LOCAL_PROSE_MODEL` (`"auto"` resolves best installed prose/general model: `gemma*`, `llama*`, `mistral*`, `qwen*`, `phi*`): transcript learning extraction, orchestration doc audits, long CI/Playwright log summaries, and PR prose drafts.
+  - **Local Ollama Offloading (`ollama_chat` / `127.0.0.1:11434`):**
+    - `qwen2.5-coder:14b-custom`: mandatory first-pass git diff review in `parallel-audit.py`, privacy-sensitive `.env*`/secrets inspection, and boilerplate/unit-test drafting.
+    - `gemma4:latest`: transcript learning extraction, orchestration doc audits, long CI/Playwright log summaries, and PR prose drafts.
   - **Consolidated Cloud Audit:** Stage 4 spawns **1 consolidated cloud `audit-agent`** (receiving the pre-computed static + graph impact + local Ollama findings) instead of 3 parallel cloud subagents (~65% cloud quota reduction).
 - **Option B — Track-Aware `flash`-First Subagent Tiering & Argon-Safe `FALLBACK_CHAINS`:**
   - `flash` (Default for Track S & Standard Track M): `product-agent`, standard Track M `discovery-agent` (backed by deterministic `codebase-memory-mcp`), routine `qa-agent`, `browser` visual spot-checks, standard Track M `audit-agent`, `doc-agent`, `project-agent`, Track S edits (`cavecrew-builder`).
@@ -37,6 +37,8 @@ The user grants standing authorization for the Orchestrator to enforce the **Hyb
   5. **Pre-Computed `REPO_MAP_DIGEST` + Graph Pre-Fetch:** `workflow_common.py` dynamically builds and injects `REPO_MAP_DIGEST` (all Prisma models, `src/lib/*` domains, `src/app/actions/*` paths, core singletons) so agents never spend turns listing directories.
   6. **Caveman Output Compression:** Subagents and internal workflow stages reply in terse caveman-compressed bullet receipts / strict JSON (`file:line` + action/reason only; zero pleasantries or filler prose).
   7. **Artifact-Checkpoint Compaction (`/compact`):** Use one chat per ticket and recommend `/compact` after Stage 1 (`Discovery`) or Stage 2 (`Development`) when conversation history exceeds ~15 tool turns.
+  8. **The 4-Handoff Cliff Cap & Judgment Kernel:** Keep standard Track M pipelines at `≤ 4` agent handoffs (for routine non-auth/non-tier Track M tickets, `dev-agent` may author and verify the Playwright E2E spec in-context before handing off to Stage 4 `Hybrid Audit`). When `quiet-cli.mjs` encounters a >12-line test/build failure, it invokes the local Ollama `gemma4:latest` **Judgment Kernel** to emit a 3-line root-cause digest in 0 cloud tokens.
+  9. **Swarm File-Path Leases & 0-Token API Route Map:** On Track L parallel swarms, claim exclusive file paths in `.agents/swarm_leases.json` via `claim_file_leases(worker_id, file_paths)` (enforced by `pre-tool-guard.mjs` when `SWARM_WORKER_ID` is set). Use `node .agents/scripts/quiet-cli.mjs api-map` (and `REPO_MAP_DIGEST`) for 0-token `/api/**` endpoint introspection.
 - **Track L Cross-Family Swarm Matrix (`swarm`, epics with parallel non-overlapping slices):**
   - Builders (Next.js/TS/Prisma/MUI): `Claude Sonnet 5.5 (Medium)` (or `Claude Opus 5.5 (High)` for complex slices) in `workspace: "share"`.
   - Deep Discovery & Cross-Family Verifier / Security Auditor: `Gemini 4 Neon (High)` (or `Gemini 4 Argon (High)` reserve) in `workspace: "inherit"`.
@@ -74,7 +76,7 @@ Follow `Issue -> Branch/Worktree -> Triage -> Artifact`:
    - **Human Gate #1:** Pause ONLY if Verdict is `NEEDS-INFO` / `REJECTED` or Track L Sub-Issue split needs approval.
 2. **Stage 2 — `Development` (`dev-agent`):** Write Vitest unit/Server Action contract tests FIRST, implement modular code (`≤ 100` lines) within Blast Radius (using `architect` on Track L only), spot-check live UI with `browser` (`flash`) + `agentation` MCP, and run `TYPE_CHECK_CMD`, `LINT_CMD`, `UNIT_TEST_CMD`, `SMOKE_TEST_CMD`.
 3. **Stage 3 — `QA Verification` (`qa-agent`):** Write/run Playwright `E2E_TEST_FILE_PATTERN` against real `data-testid`s (Reload Rule + Dual-Persona Tier Gate + Light/Dark `checkA11y` + `375px` overflow + screenshots in `SCREENSHOT_DIR`) and **compile `ARTIFACT_DIR/visual_testing_evidence.md`**. Author `MANUAL_TEST_FILE_PATTERN` ONLY for flows Playwright cannot automate.
-4. **Stage 4 — `Hybrid Audit` (`PARALLEL_AUDIT_WORKFLOW`):** Hard-stops if local Ollama is down. Runs: (a) 0-token Python static checks (modularity `≤ 100` lines, `'use server'` line 1, zero `any`), (b) local Ollama `LOCAL_CODER_MODEL` git diff review (0 cloud tokens), and (c) **1 consolidated cloud `audit-agent`** (`flash` on standard Track M; `pro` on Track L or diffs touching `auth/`, `billing/`, `ai/`, `webhooks/`, or `prisma/schema.prisma`).
+4. **Stage 4 — `Hybrid Audit` (`PARALLEL_AUDIT_WORKFLOW`):** Hard-stops if local Ollama is down. Runs: (a) 0-token Python static checks (modularity `≤ 100` lines, `'use server'` line 1, zero `any`), (b) local Ollama `qwen2.5-coder:14b-custom` git diff review (0 cloud tokens), and (c) **1 consolidated cloud `audit-agent`** (`flash` on standard Track M; `pro` on Track L or diffs touching `auth/`, `billing/`, `ai/`, `webhooks/`, or `prisma/schema.prisma`).
    - **Auto-Route Loops on `FAIL`:** `TESTS_REQUIRED: YES -> QA -> Dev -> Audit`; `TESTS_REQUIRED: NO -> Dev -> Audit`. Round 2+ artifacts MUST include Root Cause / Gap Analysis.
 5. **Human Gate #2 — Post-Audit Visual Sign-Off:** Present `ARTIFACT_DIR/visual_testing_evidence.md` (compiled in Stage 3) for user visual approval before PR creation.
 6. **Stage 5 — `Documentation & Pre-PR Closure` (`doc-agent`, `flash`):** Complete Section 6 checks before asking to commit/push.
@@ -82,7 +84,7 @@ Follow `Issue -> Branch/Worktree -> Triage -> Artifact`:
 ## 5. Incidental Observations & Decoupled Hygiene
 
 - Append out-of-scope debt discovered in any stage to `OBSERVATIONS_FILE` (`{ "id": "OBS-<timestamp>", "discovery_agent": "...", "observation": "...", "file": "path:line", "severity": "low|medium|high" }`).
-- **Zero Per-Ticket Hygiene Tax:** Do NOT run `orchestration-auditor` or full transcript mining on every ticket. Capture learnings on demand via `/learn` (or explicit user correction) and run `orchestration-auditor` + `OBSERVATIONS_FILE` triage on a weekly `/schedule`.
+- **Zero Per-Ticket Hygiene Tax & Rule Expiry Tags ("Harness Rot" Prevention):** Do NOT run `orchestration-auditor` or full transcript mining on every ticket. Capture learnings on demand via `/learn` (or explicit user correction) and run `orchestration-auditor` + `OBSERVATIONS_FILE` triage on a weekly `/schedule`. Tag any model-specific workaround rule with `[EXPIRY: <model-or-condition>]` so `system-agent` can prune obsolete prompt rules as models improve.
 
 ## 6. Pre-PR Closure & Dual-Environment Operations Gate
 

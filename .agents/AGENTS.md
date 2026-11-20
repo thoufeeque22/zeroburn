@@ -35,7 +35,7 @@ Subagents are natively auto-registered via the workspace plugin at `.agents/plug
 | Discovery | `discovery-agent.md` | `flash` (Track M) / `pro` (Track L or auth/billing/schema/AI) | `ARTIFACT_DIR` only | `codebase-memory-mcp` (`search_graph`, `trace_path`, `query_graph`) |
 | Dev | `dev-agent.md` | `inherit` (M) / `pro` (L) / `cavecrew-builder` (S) | `src/`, `prisma/`, `ARTIFACT_DIR` | `architect` (Track L only), `triage-lint` |
 | QA | `qa-agent.md` | `flash` (`pro` for complex auth/tier) | `src/__tests__/`, `.maestro/`, `docs/manual_tests/`, `ARTIFACT_DIR` | Playwright, `@axe-core/playwright`, Maestro |
-| Audit | `audit-agent.md` | 0-token Python + local Ollama `LOCAL_CODER_MODEL` (`auto`-resolved) + 1 cloud auditor (`flash` Track M / `pro` high-risk or Track L) | `ARTIFACT_DIR` only (READ-ONLY on `src/`) | `local-ollama-bridge`, `modern-web-guidance`, `gemini-cli-security` (`analyze`) |
+| Audit | `audit-agent.md` | 0-token Python + local Ollama `qwen2.5-coder:14b-custom` + 1 cloud auditor (`flash` Track M / `pro` high-risk or Track L) | `ARTIFACT_DIR` only (READ-ONLY on `src/`) | `local-ollama-bridge`, `modern-web-guidance`, `gemini-cli-security` (`analyze`) |
 | Doc | `doc-agent.md` | `flash` | `docs/`, `README.md`, `.agents/`, `ARTIFACT_DIR` | `pnpm pr-check`, `pnpm run drift-report` |
 | Project | `project-agent.md` | `flash` | `ARTIFACT_DIR`, `.agents/incidental_observations.json` | `gh-project-issue-manager`, `gh` CLI (`run_command`) |
 | System | `system-agent.md` | `pro` | `AGENTS.md`, `.agents/` | `orchestration-auditor` |
