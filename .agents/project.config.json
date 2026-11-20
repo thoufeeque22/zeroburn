@@ -1,0 +1,52 @@
+{
+  "projectName": "my-app",
+  "brandName": "my-app",
+  "socialHandle": "@myapp",
+  "monogram": "m.a",
+  "stackSummary": "Next.js App Router + TypeScript + Prisma",
+  "graphProjectId": "",
+  "ollamaUrl": "http://127.0.0.1:11434",
+  "requiredLocalModels": [
+    "qwen2.5-coder:14b",
+    "gemma4:latest"
+  ],
+  "localCoderModel": "qwen2.5-coder:14b",
+  "localProseModel": "gemma4:latest",
+  "maxLinesPerFile": 100,
+  "highRiskPrefixes": [
+    "src/lib/auth/",
+    "src/lib/billing/",
+    "src/app/api/webhooks/",
+    "prisma/schema.prisma"
+  ],
+  "highRiskKeywords": [
+    "auth",
+    "billing",
+    "stripe",
+    "tier",
+    "quota",
+    "prisma",
+    "schema",
+    "rls",
+    "security",
+    "webhook"
+  ],
+  "paths": {
+    "schema": "prisma/schema.prisma",
+    "libDir": "src/lib",
+    "actionsDir": "src/app/actions",
+    "coreSingletons": "src/lib/core/*"
+  },
+  "digests": {
+    "uiUx": [
+      "Zero raw Unicode emojis in UI components.",
+      "Theme-aware colors only (no hardcoded `#fff`/`#000`); WCAG AA >=4.5:1 contrast in Light & Dark.",
+      "8pt grid (`8,16,24,32`); max 1 primary CTA per screen/modal; outcome-first CTA copy; linked `<label>` on all inputs."
+    ],
+    "coreProduction": [
+      "Strict TypeScript: Zero `any` (validate external payloads with Zod); `catch (error: unknown)`; `'use server';` on line 1 of Server Actions.",
+      "Modularity: <=100 non-empty lines per file (`src/__tests__` exempt); no nested ternaries.",
+      "Security: Enforce server-side auth/entitlement checks, bounded Zod `.max()` inputs, rate limiting, and webhook idempotency."
+    ]
+  }
+}

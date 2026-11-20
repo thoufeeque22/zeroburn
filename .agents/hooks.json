@@ -1,0 +1,25 @@
+{
+  "session-context": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "node ./hooks/session-start.mjs",
+        "timeout": 5
+      }
+    ]
+  },
+  "safety-and-modularity-guard": {
+    "PreToolUse": [
+      {
+        "matcher": "write_file|edit_file|run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ./hooks/pre-tool-guard.mjs",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "zeroburn",
+  "displayName": "ZeroBurn Agent Orchestrator",
+  "version": "2.0.0",
+  "description": "Zero-waste hybrid multi-agent orchestration (Product, Discovery, Dev, QA, Audit, Doc, Project, System) with 0-token Python static guards, Local Ollama auto-start & diff review, quiet 1-line CLI receipts, and Codebase Knowledge Graph pre-fetching."
+}
