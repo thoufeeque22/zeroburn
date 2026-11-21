@@ -15,7 +15,7 @@ Most multi-agent setups ("PM / Architect / Dev / QA prompt packs") drain your 5-
 
 ### Token & Quota Benchmark (Per Feature Ticket)
 
-| Metric | Standard Multi-Agent Pipeline | `zeroburn` v2.2.0 Engine | Savings |
+| Metric | Standard Multi-Agent Pipeline | `zeroburn` v2.3.0 Engine | Savings |
 | :--- | :--- | :--- | :--- |
 | Cloud `pro` Subagent Sessions | 6–9 sessions | **0–1 session** (`flash` default) | **~85% fewer `pro` calls** |
 | Exploratory File-Read Turns | 12–18 turns | **0–2 turns** (0-token Graph Pre-Fetch + `REPO_MAP_DIGEST`) | **~80% fewer turns** |
@@ -68,7 +68,7 @@ CHANGELOG.md                        # Version history & upgrade notes
 │   └── quiet-cli.mjs               # 1-line tsc/lint/vitest wrapper + Judgment Kernel + api-map
 └── plugins/
     └── zeroburn/
-        ├── plugin.json             # Single source of truth for ZeroBurn version (v2.2.0)
+        ├── plugin.json             # Single source of truth for ZeroBurn version (v2.3.0)
         └── agents/                 # 8 specialized subagent definitions
 ```
 

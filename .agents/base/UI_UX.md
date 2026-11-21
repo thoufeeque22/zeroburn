@@ -20,10 +20,22 @@
 - **Pricing Anchors:** Show crossed-out anchor directly beside/above discounted price (`crossed-out anchor beside discounted price`); never write `"Actual price:"` or `"Value:"`.
 - **Onboarding & Settings Fallback:** Any skippable onboarding step/survey MUST have a fallback configuration in Settings, and specific action-oriented copy explaining what skipping entails.
 
-## Modular Form Engine (`> 3` sections or `> 100` lines)
+## Customer UI Copy Policy & Term-Tooltip Architecture
+- **Bucket 1 — Signature Brand Vocabulary (`<brand-terms>`):**
+  - Define domain-specific customer-facing terms and plain-English explanations centrally in `.agents/project.config.json`.
+  - **Interactive Helper Pattern:** Require first exposure and dense UI elements (pricing cards, feature matrices, settings headers, banners) to use an interactive helper pattern (e.g., `<TermTooltip term="<brand-term>" />` or inline plain phrasing + tooltip).
+  - **Canonical Doc Links:** Pair tooltips and setup forms with canonical documentation links (`https://example.com/docs/<guide>`).
+- **Bucket 2 — Customer-Facing Tier Names:**
+  - Always render human-readable tier names (`Free`, `Developer`, `Pro`, `Team`, `Enterprise`).
+  - **Hard Ban on Raw DB Enums in UI:** Never render raw Prisma/DB enum identifiers (`FREE_DEV`, `FREE`, `PRO`, `TEAM`, `ENTERPRISE`) in any user-facing UI component; always use a helper formatter (e.g., `formatTierName(tier)`).
+- **Bucket 3 — Internal Engineering Jargon Ban in Customer UI:**
+  - Strictly ban exposing raw engineering/architectural concepts in customer alerts, toasts, upgrade banners, error messages, and pricing tables: `OAuth`, `SSRF`, `RBAC`, `Zod`, `RSC`, HTTP status codes (`403`, `500`), raw Prisma/database errors, or internal config keys.
+  - **Setup Form Exception:** Technical provider setup forms keep provider-exact field labels (`Client ID`, `Client Secret`, `Bucket Name`, `S3 Endpoint URL`) so users can copy-paste from provider dashboards, but MUST be accompanied by friendly plain-English helper text and links out to the relevant setup doc guides.
+
+## Modular Form Engine (`> 3` sections or `> 200` lines)
 1. Context Provider/Consumer for shared form state (no prop-drilling).
 2. Pure `index.tsx` entry (Provider + high-level layout).
-3. Atomic `≤ 100`-line sub-components (`FieldGroup.tsx`, `FormActions.tsx`), `use*` hooks, `.types.ts`, `.utils.ts`.
+3. Atomic `≤ 200`-line sub-components (`FieldGroup.tsx`, `FormActions.tsx`), `use*` hooks, `.types.ts`, `.utils.ts`.
 
 ## Brand Identity
 - Primary name: `<your-brand-name>` (all UI, titles, OG tags, meta descriptions). Never shorten to "Directly".

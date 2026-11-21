@@ -15,7 +15,7 @@
 3. **Strict Bounded Input Validation:** Parse all payloads with Zod schemas enforcing explicit `.max()` bounds on prompt strings, message arrays, and media/visual frames.
 4. **Dedicated AI Rate Limiting:** Register every AI route in `src/lib/core/rate-limit-registry.ts` using `aiRateLimit`.
 5. **Zero-Leak Output & Error Handling:** Sanitize/validate model outputs and wrap provider errors in 3-part zero-leak UI messages (never expose raw SDK/API errors).
-6. **BYOK Secret Hygiene:** Encrypt stored BYOK API keys at rest; never log, echo, or serialize plaintext keys back to client components.
+6. **User-Supplied API Key Hygiene:** Encrypt stored user-supplied API keys at rest; never log, echo, or serialize plaintext keys back to client components.
 7. **Timeout, Circuit Breaker & Sentry Logging:** Apply explicit request timeouts / spend caps and report unexpected AI provider failures to Sentry.
 
 ## Deployment & Server Infrastructure

@@ -58,8 +58,8 @@ function checkUiAndSizeRules(toolName, args, norm, base, content) {
   const isExempt = /\/src\/(?:__tests__\/|auth\.ts$|lib\/infrastructure\/database\/prisma\.ts$)/.test(norm);
   if (toolName === 'write_file' && !args.Append && isSrcCode && !isExempt) {
     const lines = countCodeLines(content);
-    if (lines > 100 && (isComponent || !content.includes('eslint-disable max-lines'))) {
-      return `Blocked: ${base} has ${lines} code lines (>100 limit). Split into modular files.`;
+    if (lines > 200 && (isComponent || !content.includes('eslint-disable max-lines'))) {
+      return `Blocked: ${base} has ${lines} code lines (>200 limit). Split into modular files.`;
     }
   }
   return null;

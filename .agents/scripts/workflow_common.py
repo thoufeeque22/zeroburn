@@ -14,10 +14,10 @@ def _load_plugin_version() -> str:
         if os.path.isfile(candidate):
             try:
                 with open(candidate, "r", encoding="utf-8") as fh:
-                    return str(json.load(fh).get("version") or "2.2.0")
+                    return str(json.load(fh).get("version") or "2.3.0")
             except Exception:
                 pass
-    return "2.2.0"
+    return "2.3.0"
 
 
 def _load_project_config() -> dict:
@@ -36,7 +36,7 @@ ZEROBURN_VERSION = _load_plugin_version()
 BRAND_NAME = PROJECT_CONFIG.get("brandName") or PROJECT_CONFIG.get("projectName") or "project"
 STACK_SUMMARY = PROJECT_CONFIG.get("stackSummary") or "Next.js App Router + TypeScript + Prisma"
 OLLAMA_URL = (PROJECT_CONFIG.get("ollamaUrl") or "http://127.0.0.1:11434").rstrip("/")
-MAX_LINES_PER_FILE = int(PROJECT_CONFIG.get("maxLinesPerFile") or 100)
+MAX_LINES_PER_FILE = int(PROJECT_CONFIG.get("maxLinesPerFile") or 200)
 SWARM_LEASES_FILE = ".agents/swarm_leases.json"
 
 _CODER_PATTERNS = (
@@ -159,6 +159,12 @@ _digests_cfg = PROJECT_CONFIG.get("digests") or {}
 _ui_lines = _digests_cfg.get("uiUx") or [
     "Zero raw Unicode emojis in UI components.",
     "Theme-aware colors only; WCAG AA >=4.5:1 contrast in Light & Dark.",
+    (
+        "Customer UI Copy Policy: pair domain brand terms (`<brand-terms>`) with `<TermTooltip>` + "
+        "canonical setup doc links (`/docs/<guide>`); render human-readable tier names via `formatTierName()` (ban raw DB enums in UI); "
+        "ban internal engineering jargon (`OAuth`/`SSRF`/`RBAC`/`Zod`/`RSC`/`403`/`500`/DB errors/config keys) in "
+        "customer alerts/banners/pricing (provider setup forms keep exact labels + plain-English helper text + doc link)."
+    ),
 ]
 _core_lines = _digests_cfg.get("coreProduction") or [
     f"Strict TypeScript: Zero `any`; <= {MAX_LINES_PER_FILE} lines per file; `'use server';` on line 1.",

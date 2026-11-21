@@ -339,7 +339,7 @@ async def _run_audit_workflow():
 
     severity_policy = (
         "SEVERITY POLICY: Only `critical` and `high` security or data-integrity vulnerabilities may fail the audit (`verdict: 'FAIL'`). "
-        "Report `medium` or `low` findings (modularity >100 lines, minor blast-radius drift, style/lint nits) with `severity: 'medium' | 'low'` — "
+        "Report `medium` or `low` findings (modularity >200 lines, minor blast-radius drift, style/lint nits) with `severity: 'medium' | 'low'` — "
         "they are automatically logged to `.agents/incidental_observations.json` and deferred, and MUST NOT fail `verdict` or block PR closure.\n"
     )
 
@@ -365,7 +365,8 @@ async def _run_audit_workflow():
             f"1. Security & Production: 7-Point AI Security, server-side getUserTier gating, "
             f"ProcessedWebhook P2002, rate-limit-registry.ts, RLS/GDPR cascades, zero SSR secrets leaks.\n"
             f"2. Blast Radius & Data Integrity: diff matches {blueprint_path}, real Prisma persistence on NODE_ENV==='production'.\n"
-            f"3. UX, A11y & Docs Parity: design-system compliance, zero emojis, E2E Reload + Dual-Persona + Light/Dark checkA11y + 375px, "
+            f"3. UX, A11y & Docs Parity: design-system compliance, zero emojis, Customer UI Copy Policy (brand tooltips + doc links, human-readable tier names, zero engineering jargon), "
+            f"E2E Reload + Dual-Persona + Light/Dark checkA11y + 375px, "
             f"and {artifact_dir}/visual_testing_evidence.md completeness."
         ),
     }
