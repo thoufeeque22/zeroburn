@@ -5,6 +5,7 @@ Single source of truth for identifiers, tracks, phases, verdicts, paths, and com
 ## Git & Branching
 - `MAIN_BRANCH`: `main`
 - `FEATURE_BRANCH_PATTERN`: `feature/<id>-<description>`
+- `EPIC_BRANCH_PATTERN`: `epic/<epic-id>-<description>`
 - `COMMIT_MSG_PATTERN`: `<type>(ticket-<id>): <summary>`
 
 ## State & Artifacts
