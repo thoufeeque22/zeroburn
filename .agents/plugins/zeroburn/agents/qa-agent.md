@@ -22,7 +22,7 @@ Stage 3 (`QA Verification`, post-Dev). **NEVER edit application code in `src/` (
    - **Dual-Persona Tier Gate:** Test both an entitled tier (`PRO`/`ENTERPRISE`) and restricted tier (`FREE` upsell modal + server rejection).
    - **UI/A11y Gate (All browser-visible surfaces incl. AI chat, modals, toasts):** Import `ux-test-helpers.ts`, run `checkA11y` in **both Light and Dark modes** (0 WCAG AA violations), assert `assertNoHorizontalOverflow` at `375x667`, verify no hover layout shift, and save `fullPage: false` screenshots to `SCREENSHOT_DIR`.
    - **Native (if applicable):** Maestro flows in `.maestro/`.
-   - **Runtime Checks:** Monitor console errors/deprecations and unexpected `4xx/5xx` responses; verify `<your-brand-name>` copy/currency matches product specs.
+   - **Runtime Checks:** Monitor console errors/deprecations and unexpected `4xx/5xx` responses; verify `<your-brand-name>` copy/currency and Customer UI Copy Policy (`UI_UX.md`: human-readable tier names—never raw `FREE_DEV` enums, `<TermTooltip>` + doc links for `<brand-terms>`, zero engineering jargon in customer UI).
 3. **Compile Visual Evidence (Before Audit Gate):** Write `ARTIFACT_DIR/visual_testing_evidence.md` embedding Light/Dark/Desktop/Mobile screenshots from `SCREENSHOT_DIR` (and recordings if dynamic).
 4. **Living Manual Runbooks (Exceptions Only):** Update `docs/manual_tests/<feature-area>.md` ONLY for flows Playwright cannot automate (OAuth portals, live webhooks, physical devices). Never create per-ticket files.
 5. **Artifact Update:** `write_file` -> `ARTIFACT_DIR/qa_report.md` (include Gap Analysis if Round 2+; `RequestFeedback: true` only on `FAIL`).

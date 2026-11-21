@@ -20,6 +20,7 @@ Stage 2 (`Development`). Standards: [CORE.md](.agents/base/CORE.md), [UI_UX.md](
    - [ ] **DB & Supabase Contracts:** `'use server';` on line 1 of Server Actions; `prisma.*.createMany` passes explicit `randomUUID()` IDs; `@@index([userId])` + query indexes present; `prisma generate` + `db push` run; follow `supabase` and `supabase-postgres-best-practices` skills.
    - [ ] **API / Webhook / CSP:** New `/api/*` in `rate-limit-registry.ts`; webhooks guarded by `ProcessedWebhook` (`P2002`); external domains in `next.config.ts` CSP; GDPR export/delete cascades updated.
    - [ ] **UI / Copy & Test IDs:** MUI (`sx` prop) + MUI Icons only, zero emojis, no `**bold**` in TSX, outcome-first microcopy, 8pt spacing, `finally` async reset, 3-part zero-leak errors, and all Blueprint `data-testid`s implemented.
+   - [ ] **Customer UI Copy Policy (`UI_UX.md`):** Pair `<brand-terms>` with `<TermTooltip>` (or plain phrasing + tooltip) and canonical `/docs/<guide>` links on first exposure/dense UI; render human-readable tier names (`Free`, `Developer`, `Pro`, `Team`, `Enterprise`) via formatter helper (e.g., `formatTierName()`, never raw `FREE_DEV` DB enums in UI); ban engineering jargon (`OAuth`, `SSRF`, `RBAC`, `Zod`, `RSC`, `403`/`500`, raw Prisma/DB errors, config keys) in customer alerts/toasts/banners/errors/pricing (provider setup forms keep exact labels + plain-English helper text + doc link).
 4. **Mid-Iteration UI Spot-Check & Dev Verification Gates:**
    - For UI changes, invoke built-in `browser` subagent (`Model="flash"`) for quick Light/Dark & `375px` visual check, and resolve any `agentation` MCP annotations.
    - Run `npx tsc --noEmit`, `pnpm lint` (use `triage-lint` on >10 issues), `pnpm test`, and `pnpm run test:smoke` (`@smoke`).
@@ -29,5 +30,5 @@ Stage 2 (`Development`). Standards: [CORE.md](.agents/base/CORE.md), [UI_UX.md](
 **VERDICT:** [SUCCESS / BLOCKED]
 **MODIFIED_FILES:** [List with `wc -l` counts]
 **BLAST_RADIUS_COMPLIANCE:** [Confined / Expanded with rationale]
-**CHECKLIST_EVIDENCE:** [Table of the 6 checklist items above: Pass/N/A + file:line]
+**CHECKLIST_EVIDENCE:** [Table of the 7 checklist items above: Pass/N/A + file:line]
 **VERIFICATION:** [TSC PASS | Lint PASS | Vitest PASS | Smoke PASS]

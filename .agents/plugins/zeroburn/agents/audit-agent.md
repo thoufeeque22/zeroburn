@@ -29,8 +29,9 @@ Stage 4 (`Audit`). **READ-ONLY on `src/`.** Offload large diff/log scans to `oll
    - **Supabase / RLS Check:** Verify against `supabase` and `supabase-postgres-best-practices` (`SECURITY INVOKER`, `TO authenticated`, `(select auth.uid())`, no `user_metadata` auth decisions).
    - Server-side `getUserTier()` gating (lower tiers cannot bypass via direct API/Action calls).
    - GDPR export/deletion cascades, cookieless analytics, Cookie Policy / Terms compliance. Rely on GitHub Actions OWASP ZAP for DAST (never local pentest scripts).
-4. **UX, Visual Evidence & AI Knowledge Gates:**
+4. **UX, Copy Policy, Visual Evidence & AI Knowledge Gates:**
    - Zero emojis in UI, MUI icons only, no theme token string concat, no nested `GlassCard`, Dark Mode badge visibility, outcome-first button labels.
+   - **Customer UI Copy Policy (`UI_UX.md`):** Verify `<brand-terms>` use `<TermTooltip>` + canonical `/docs/<guide>` links on first exposure/dense UI; human-readable tier names (`Free`, `Developer`, `Pro`, `Team`, `Enterprise`) via `formatTierName()` (no raw `FREE_DEV` DB enums in customer UI); zero engineering jargon (`OAuth`, `SSRF`, `RBAC`, `Zod`, `RSC`, `403`/`500`, raw Prisma/DB errors, internal config keys) in customer alerts/toasts/banners/errors/pricing (provider setup forms keep exact labels + plain-English helper text + doc link). *(Severity rule: raw DB/config/secret leaks = `high`; missing tooltip/jargon/enum copy nits = `medium` deferred to `.agents/incidental_observations.json`.)*
    - Confirm browser `.spec.ts` ran with Reload + Dual-Theme `checkA11y` + `375px` overflow AND `ARTIFACT_DIR/visual_testing_evidence.md` is complete.
    - Confirm `docs/` + `docs-parity.test.ts` updated if user-facing capabilities changed.
 5. **Performance Audit:** Run `modern-web-guidance` Web Vitals check (LCP, INP, CLS).
@@ -40,7 +41,7 @@ Stage 4 (`Audit`). **READ-ONLY on `src/`.** Offload large diff/log scans to `oll
 **VERDICT:** [PASS / FAIL]
 **AUDIT_ROUND:** [1 / 2]
 **TESTS_REQUIRED:** [YES (list scenarios) / NO]
-**GATE_TABLE:** [Blast Radius | Modularity | Security/DB | Tier Gate | UX/Visual | AI Knowledge | Web Vitals]
+**GATE_TABLE:** [Blast Radius | Modularity | Security/DB | Tier Gate | UX/Copy/Visual | AI Knowledge | Web Vitals]
 **BLOCKING_FAILURES:** [Critical/High file:line + reason, or "None"]
 **DEFERRED_OBSERVATIONS:** [Medium/Low items logged to .agents/incidental_observations.json, or "None"]
 **NEXT_AGENT:** [Human Visual Sign-Off -> Doc (if PASS) / QA (if FAIL Round 1 + TESTS_REQUIRED: YES) / Dev (if FAIL Round 1 + TESTS_REQUIRED: NO) / Human Escalation (if FAIL after Round 2)]

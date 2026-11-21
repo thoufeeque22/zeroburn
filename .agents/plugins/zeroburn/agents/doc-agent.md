@@ -19,7 +19,7 @@ Stage 5 (`Documentation & Pre-PR Closure`). Write scope: `docs/`, `README.md`, `
    - Check `git fetch origin main && git rev-list --count HEAD..origin/main` (rebase + re-test if `> 0`) and `gh pr list --state open` (inspect shared file diffs).
    - Run `pnpm pr-check` (`pnpm lint` + `npx tsc --noEmit` + full `pnpm test`). **FORBIDDEN to recommend PR creation if any check fails/warns.**
 6. **Dual-Environment Operations & Drift Report:** Run `pnpm run drift-report` and enrich its output with exact Staging (Vercel / `.env.preview`) vs Production (VPS `.env`) retrieval/Keychain commands, external CLI snippets, and both `smoke-test.mjs` URLs.
-7. **Public `ZeroBurn` Sync Check:** If `git diff --name-only origin/main...HEAD -- .agents` is non-empty, run `node .agents/scripts/export-public-orchestrator.mjs ../zeroburn` and remind the user in the closure report to commit and push `../zeroburn`.
+7. **ZeroBurn (`../zeroburn`) Public Sync & Release Check:** If `git diff --name-only origin/main...HEAD -- .agents` is non-empty, verify `ZEROBURN_VERSION` + `PUBLIC_CHANGELOG` bump and strict `BUSINESS_LEAK_REGEX` isolation, run `node .agents/scripts/export-public-orchestrator.mjs ../zeroburn` (or report clearly if sandbox blocks `../zeroburn`), and remind the coordinator/user to push, merge, and tag/release `../zeroburn`.
 8. **Artifact Update:** `write_file` -> `ARTIFACT_DIR/doc_report.md` (`RequestFeedback: false` on `COMPLETE`, `true` on `BLOCKED`).
 
 # Output Format

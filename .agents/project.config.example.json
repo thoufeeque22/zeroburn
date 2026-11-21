@@ -1,5 +1,5 @@
 {
-  "zeroburnVersion": "2.2.0",
+  "zeroburnVersion": "2.3.0",
   "projectName": "my-app",
   "brandName": "my-app",
   "socialHandle": "@myapp",
@@ -41,7 +41,8 @@
     "uiUx": [
       "Zero raw Unicode emojis in UI components.",
       "Theme-aware colors only (no hardcoded `#fff`/`#000`); WCAG AA >=4.5:1 contrast in Light & Dark.",
-      "8pt grid (`8,16,24,32`); max 1 primary CTA per screen/modal; outcome-first CTA copy; linked `<label>` on all inputs."
+      "8pt grid (`8,16,24,32`); max 1 primary CTA per screen/modal; outcome-first CTA copy; linked `<label>` on all inputs.",
+      "Customer UI Copy Policy: pair domain brand terms (`<brand-terms>`) with `<TermTooltip>` + canonical setup doc links (`/docs/<guide>`); render human-readable tier names via `formatTierName()` (ban raw DB enums in UI); ban internal engineering jargon (`OAuth`/`SSRF`/`RBAC`/`Zod`/`RSC`/`403`/`500`/DB errors/config keys) in customer alerts/banners/pricing (provider setup forms keep exact labels + plain-English helper text + doc link)."
     ],
     "coreProduction": [
       "Strict TypeScript: Zero `any` (validate external payloads with Zod); `catch (error: unknown)`; `'use server';` on line 1 of Server Actions.",

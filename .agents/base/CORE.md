@@ -35,5 +35,5 @@
 ## Latency, Loading & Error Handling
 - **Zero Waterfalls:** Fetch independent startup/page data concurrently via `Promise.allSettled` or parallel Server Components.
 - **Latency Thresholds:** `< 300ms`: no spinner; `1s–5s`: layout-preserving skeletons; `5s–10s`: progressive status copy; `> 10s`: determinate progress bar/milestone checklist + "safe to navigate away" copy.
-- **Zero-Leak 3-Part Errors:** Never leak raw DB/Prisma/third-party error codes to UI. Always show: (1) what happened in plain language, (2) why, (3) concrete next action. Log via Sentry.
+- **Zero-Leak 3-Part Errors:** Never leak raw DB/Prisma/third-party error codes to UI (see [UI_UX.md](UI_UX.md) Customer UI Copy Policy for banned engineering jargon and the provider setup form exception). Always show: (1) what happened in plain language, (2) why, (3) concrete next action. Log via Sentry.
 - **Async Reset:** Reset loading/disabled button states inside `finally` blocks.

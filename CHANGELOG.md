@@ -5,6 +5,18 @@ The canonical version is stored in [`.agents/plugins/zeroburn/plugin.json`](.age
 
 ---
 
+## [2.3.0] - 2026-11-21
+
+### Added
+- **Three-Bucket Customer UI Copy Policy & Term-Tooltip Architecture (`UI_UX.md`, `workflow_common.py`):**
+  - Enforces interactive `<TermTooltip>` helpers + canonical setup doc links for domain terms, human-readable tier names via `formatTierName()` (banning raw DB enum strings in customer UI), and an internal engineering jargon ban (`OAuth`, `SSRF`, `RBAC`, `Zod`, `RSC`, HTTP status codes, raw DB errors) with a provider-setup-form label exception paired with plain-English helper text.
+- **Stage 4 2-Round Audit Cap & Severity Blocking Policy (`ORCHESTRATION.md`, `parallel-audit.py`):**
+  - Caps Stage 4 at 2 rounds (Round 2 evaluates ONLY the remediation delta via `previous_ref`) and blocks PR progress strictly on `critical`/`high` security or data-integrity issues while deferring `medium`/`low` observations.
+- **Strict Public Isolation & Release Policy (`export-public-orchestrator.mjs`):**
+  - Expands `BUSINESS_LEAK_REGEX` and `sanitizePublicContent()` to guarantee zero product/domain-specific vocabulary or doc slugs ever leak into exported ZeroBurn artifacts.
+
+---
+
 ## [2.2.0] - 2026-11-20
 
 ### Added
