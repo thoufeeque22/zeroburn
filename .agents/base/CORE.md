@@ -14,11 +14,11 @@
 - **Package Manager:** Always use `pnpm install <pkg>` (never `npm`).
 
 ## Modularity & Code Cleanliness
-- **100-Line Rule:** ESLint enforces `["error", { "max": 100, "skipBlankLines": true, "skipComments": true }]` (`src/__tests__/**` exempt).
-  - New files MUST be `≤ 100` lines.
+- **200-Line Rule:** ESLint enforces `["error", { "max": 200, "skipBlankLines": true, "skipComments": true }]` (`src/__tests__/**` exempt).
+  - New files MUST be `≤ 200` lines.
   - **UI Components:** NEVER use `/* eslint-disable max-lines */`. Extract sub-components/hooks.
   - **Non-UI Files:** May use `/* eslint-disable max-lines */` ONLY with a one-line justification explaining why splitting adds harmful indirection.
-  - **Legacy Files (`> 100` lines):** Any touch requires extracting logic into compliant modules; only remove the disable flag once `< 100` lines.
+  - **Legacy Files (`> 200` lines):** Any touch requires extracting logic into compliant modules; only remove the disable flag once `< 200` lines.
   - **No Linter Evasion:** Never collapse multi-line `if`, Prisma calls, or JSX onto one line to game line counts.
 - **Control Flow & Helpers:** No nested ternaries (use `Record<K, V>` maps or helpers). Prefer optional chaining (`?.`), `some`/`every` over complex `reduce`, and `Date.now()` over `new Date().getTime()`. Split functions exceeding ~15 lines of dense logic.
 - **Cleanup:** Remove unused imports/props immediately (`@typescript-eslint/no-unused-vars`).
@@ -30,7 +30,7 @@
 - **Prisma `createMany` Contract:** When calling `prisma.<model>.createMany` on models using `@default(cuid())` or `@default(uuid())`, explicitly generate unique IDs (e.g., `id: randomUUID()`) in mapped rows or use transactional `upsert`. Unit tests for bulk inserts MUST assert non-null, unique `id`s are passed.
 - **Prisma Indexes:** User-scoped models MUST have `@@index([userId])` plus compound indexes (e.g., `[userId, scheduledAt]`, `[userId, isPublished]`) and Inngest scheduler filter indexes (`status`, `scheduledAt`).
 - **Schema Sync:** On `schema.prisma` edits, run `npx prisma generate` + `npx prisma db push` locally, and prepare migration/SQL steps for staging & prod.
-- **Automated Invariant Enforcement:** `.agents/hooks.json` (`PreToolUse`) and `src/__tests__/unit/orchestration-invariants.test.ts` (`pnpm test`) enforce Prisma `userId` indexes, sensitive API `rateLimitRegistry` coverage, 100-line/emoji/env guards, and orchestration hygiene automatically.
+- **Automated Invariant Enforcement:** `.agents/hooks.json` (`PreToolUse`) and `src/__tests__/unit/orchestration-invariants.test.ts` (`pnpm test`) enforce Prisma `userId` indexes, sensitive API `rateLimitRegistry` coverage, 200-line/emoji/env guards, and orchestration hygiene automatically.
 
 ## Latency, Loading & Error Handling
 - **Zero Waterfalls:** Fetch independent startup/page data concurrently via `Promise.allSettled` or parallel Server Components.

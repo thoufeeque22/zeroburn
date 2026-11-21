@@ -14,7 +14,7 @@ Stage 2 (`Development`). Standards: [CORE.md](.agents/base/CORE.md), [UI_UX.md](
 1. **Context & Round 2+ RCA:** Read `discovery_blueprint.md` (and its QA Acceptance Contract + `data-testid` spec). On Round 2+, write **Root Cause Analysis + Remediation Strategy** first (log recurring mistakes in `OBSERVATIONS_FILE`).
 2. **Contract-First TDD & Design:** Write Vitest unit/Server Action contract tests FIRST, then implement cleanly. Invoke `architect` skill **on Track L Epics only**. Offload single-file diffs, boilerplate, or sensitive `.env*` inspection to `ollama_chat` (`qwen2.5-coder:14b-custom`). Confine edits to Discovery Blast Radius; if scope expands > 30% or hits an unrelated refactor, pause to split 1 linked sub-issue. Use `pnpm install` only (never `npm`).
 3. **Blocking Implementation Checklist:**
-   - [ ] **Modularity (`wc -l`):** Every created/modified non-test file in `src/` is `≤ 100` lines (no `eslint-disable max-lines` on UI; justified comment only on non-UI).
+   - [ ] **Modularity (`wc -l`):** Every created/modified non-test file in `src/` is `≤ 200` lines (no `eslint-disable max-lines` on UI; justified comment only on non-UI).
    - [ ] **Tier Gating:** Server-side `getUserTier(userId)` + `TIER_QUOTA_MAP` checks + structured upsell error.
    - [ ] **AI Knowledge Base:** `docs/` + `index.ts` updated & `docs-parity.test.ts` green (or `N/A`).
    - [ ] **DB & Supabase Contracts:** `'use server';` on line 1 of Server Actions; `prisma.*.createMany` passes explicit `randomUUID()` IDs; `@@index([userId])` + query indexes present; `prisma generate` + `db push` run; follow `supabase` and `supabase-postgres-best-practices` skills.

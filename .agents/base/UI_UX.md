@@ -20,10 +20,10 @@
 - **Pricing Anchors:** Show crossed-out anchor directly beside/above discounted price (`crossed-out anchor beside discounted price`); never write `"Actual price:"` or `"Value:"`.
 - **Onboarding & Settings Fallback:** Any skippable onboarding step/survey MUST have a fallback configuration in Settings, and specific action-oriented copy explaining what skipping entails.
 
-## Modular Form Engine (`> 3` sections or `> 100` lines)
+## Modular Form Engine (`> 3` sections or `> 200` lines)
 1. Context Provider/Consumer for shared form state (no prop-drilling).
 2. Pure `index.tsx` entry (Provider + high-level layout).
-3. Atomic `≤ 100`-line sub-components (`FieldGroup.tsx`, `FormActions.tsx`), `use*` hooks, `.types.ts`, `.utils.ts`.
+3. Atomic `≤ 200`-line sub-components (`FieldGroup.tsx`, `FormActions.tsx`), `use*` hooks, `.types.ts`, `.utils.ts`.
 
 ## Brand Identity
 - Primary name: `<your-brand-name>` (all UI, titles, OG tags, meta descriptions). Never shorten to "Directly".

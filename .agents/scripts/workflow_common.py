@@ -36,7 +36,7 @@ ZEROBURN_VERSION = _load_plugin_version()
 BRAND_NAME = PROJECT_CONFIG.get("brandName") or PROJECT_CONFIG.get("projectName") or "project"
 STACK_SUMMARY = PROJECT_CONFIG.get("stackSummary") or "Next.js App Router + TypeScript + Prisma"
 OLLAMA_URL = (PROJECT_CONFIG.get("ollamaUrl") or "http://127.0.0.1:11434").rstrip("/")
-MAX_LINES_PER_FILE = int(PROJECT_CONFIG.get("maxLinesPerFile") or 100)
+MAX_LINES_PER_FILE = int(PROJECT_CONFIG.get("maxLinesPerFile") or 200)
 SWARM_LEASES_FILE = ".agents/swarm_leases.json"
 
 _CODER_PATTERNS = (

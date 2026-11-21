@@ -12,7 +12,7 @@
   ],
   "localCoderModel": "auto",
   "localProseModel": "auto",
-  "maxLinesPerFile": 100,
+  "maxLinesPerFile": 200,
   "highRiskPrefixes": [
     "src/lib/auth/",
     "src/lib/billing/",
@@ -45,7 +45,7 @@
     ],
     "coreProduction": [
       "Strict TypeScript: Zero `any` (validate external payloads with Zod); `catch (error: unknown)`; `'use server';` on line 1 of Server Actions.",
-      "Modularity: <=100 non-empty lines per file (`src/__tests__` exempt); no nested ternaries.",
+      "Modularity: <=200 non-empty lines per file (`src/__tests__` exempt); no nested ternaries.",
       "Security: Enforce server-side auth/entitlement checks, bounded Zod `.max()` inputs, rate limiting, and webhook idempotency."
     ]
   }
