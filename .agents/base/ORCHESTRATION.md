@@ -49,18 +49,11 @@ The user grants standing authorization for the Orchestrator to enforce the **Hyb
 
 Follow `Issue -> Branch/Worktree -> Triage -> Artifact`:
 1. **Resolve Ticket ID:** Parse request or query GitHub (`gh issue view <num>`). Never invent an ID. If no issue exists, invoke `project-agent` (`Model="flash"`) first.
-2. **Pre-Flight Branch Guard & Epic Branch Strategy (Zero-Stranded Branch Policy):**
-   - **Track S / Track M:**
-     - Run `git rev-list --count HEAD ^origin/main`. If ahead, check `gh pr list --head $(git branch --show-current) --state all --json state,number`:
-       - `MERGED` or `OPEN`: Safe to switch.
-       - `CLOSED` (unmerged) or **No PR found**, OR current branch has active WIP: **do NOT switch branches in place.** Create an isolated worktree from `main` (`git worktree add <path> -b <FEATURE_BRANCH_PATTERN> main`) or get explicit user permission first.
-     - Otherwise: `git checkout main && git pull`, then `git checkout -b <FEATURE_BRANCH_PATTERN>` (or switch to existing).
-   - **Track L (Multi-Slice Epics — Master Feature Branch Protocol):**
-     - Before launching slice implementations, initialize a shared master feature branch from `main`: `git checkout -b epic/<epic-id>-<slug> main && git push -u origin epic/<epic-id>-<slug>`.
-     - Each sub-issue / slice branches from `epic/<epic-id>-<slug>`: `git checkout -b feature/<slice-id>-<slug> epic/<epic-id>-<slug>`.
-     - Slice PRs target `base: epic/<epic-id>-<slug>` instead of `main` (`gh pr create --base epic/<epic-id>-<slug>`).
-     - Once merged into the epic branch, subsequent slices branch from up-to-date `epic/<epic-id>-<slug>`, resolving dependent primitive/type changes immediately without deep PR stacking against unmerged feature branches.
-     - Upon completion of all epic slices, the master feature branch is rebased on `main`, undergoes final verification, and merges to `main` atomically.
+2. **Pre-Flight Branch Guard (Zero-Stranded Branch Policy):**
+   - Run `git rev-list --count HEAD ^origin/main`. If ahead, check `gh pr list --head $(git branch --show-current) --state all --json state,number`:
+     - `MERGED` or `OPEN`: Safe to switch.
+     - `CLOSED` (unmerged) or **No PR found**, OR current branch has active WIP: **do NOT switch branches in place.** Create an isolated worktree from `main` (`git worktree add <path> -b <FEATURE_BRANCH_PATTERN> main`) or get explicit user permission first.
+   - Otherwise: `git checkout main && git pull`, then `git checkout -b <FEATURE_BRANCH_PATTERN>` (or switch to existing).
 3. **T-Shirt Track Triage:**
    - **Track S (Quick Fix / Chore):** ≤ 3 files, zero DB schema, tier, security, or UI-architecture changes.
    - **Track M (Standard Feature / Bug):** 1 PR, ≤ ~10 files.
@@ -78,7 +71,6 @@ Follow `Issue -> Branch/Worktree -> Triage -> Artifact`:
 
 ### Track S Fast Path
 `Branch Init -> Dev (inline / cavecrew-builder / flash) -> tsc + lint + targeted Vitest -> Pre-PR Sync -> PR` *(skips Product, Discovery, Audit, manual docs, and transcript mining)*.
-- **Docs-Only Bypass Rule:** When changes touch ONLY markdown/documentation files (e.g. `*.md`, `docs/**`, `.agents/**` markdown rules) with zero application code (`src/**`) or schema (`prisma/**`) diffs, **skip all test suites entirely** (`pnpm test`, Vitest, Playwright, E2E). Only run syntax/lint checks (`pnpm lint` or static doc link verification) if applicable. Never waste time or quota running unit/integration/E2E tests for pure documentation updates.
 
 ### Track M / Track L Pipeline (Contract-First TDD, Selector-Last E2E)
 1. **Stage 1 — `Product || Discovery`:** Run `product-agent` (`flash`, skipped in 0 tokens when `pure_backend=True`) and `discovery-agent` (`flash` on standard Track M; `pro` on Track L or high-risk auth/billing/schema/AI) concurrently via `run_workflow(ScriptPath=PARALLEL_DISCOVERY_WORKFLOW)` (hard-stops if local Ollama is down). Output `ARTIFACT_DIR/discovery_blueprint.md` containing the 5-Dimension Blast Radius, **QA Acceptance Contract + `data-testid` spec**, and (for Track L) the Sub-Issue Split Proposal.
@@ -103,10 +95,14 @@ Before requesting commit/push permission or running `gh pr create`, complete ALL
 1. **Upstream Rebase & In-Flight PR Scan:**
    - `git fetch origin main && git rev-list --count HEAD..origin/main`. If `> 0`, rebase on `origin/main` and re-run `pnpm pr-check` + E2E.
    - Run `gh pr list --state open`; inspect `gh pr diff <num>` on any PR touching shared files (`src/lib/billing/*`, `prisma/schema.prisma`) to prevent collisions.
-2. **Local CI Gate:** Run `PR_CHECK_CMD` (`pnpm pr-check`: 0 lint errors/warnings, 0 `tsc` errors, 100% passing `pnpm test`). *Exception: For pure documentation/orchestration rule updates (`docs/**`, `*.md`, `.agents/**` docs without code changes), skip test runs (`pnpm test`) and run only `pnpm lint` / type-checking if relevant.*
+2. **Local CI Gate:** Run `PR_CHECK_CMD` (`pnpm pr-check`: 0 lint errors/warnings, 0 `tsc` errors, 100% passing `pnpm test`).
 3. **Production Data Integrity Check:** Confirm real DB models/constraints persist across page reload (`NODE_ENV === 'production'` path intact).
 4. **Staging & Production Operations & Drift Report:** Run `DRIFT_REPORT_CMD` (`pnpm run drift-report`), enrich with exact Staging (Vercel / `.env.preview`) vs Production (VPS `.env`) retrieval/CLI commands, external service steps (Stripe, object storage, background queues, OAuth/DNS), and present directly in chat alongside both smoke check commands (`node scripts/smoke-test.mjs https://app.example.com` and `https://app.example.com`).
 5. **ZeroBurn (`../zeroburn`) Public Sync & Release Policy:**
    - **Strict Isolation:** Always keep public `zeroburn` orchestration strictly isolated from `<your-brand-name>`-specific product, tier, brand, doc-slug, and internal infrastructure terms via `export-public-orchestrator.mjs` (`sanitizePublicContent()` + fail-closed `BUSINESS_LEAK_REGEX`).
-   - **Bump, Export & Release:** Whenever a branch updates any file under `.agents/**` (`git diff --name-only origin/main...HEAD -- .agents`), bump `ZEROBURN_VERSION` + `PUBLIC_CHANGELOG` in `export-public-orchestrator.mjs` (plus `plugin.json`, `project.config.json`, `project.config.example.json`, and script fallbacks), run `EXPORT_ORCHESTRATOR_CMD` (`node .agents/scripts/export-public-orchestrator.mjs ../zeroburn`), and push, merge (via PR or `main` per repo rules), and tag/release the `../zeroburn` repo.
+   - **Bump, Export & Release (with Mandatory README Review):** Whenever a branch updates any file under `.agents/**` (`git diff --name-only origin/main...HEAD -- .agents`):
+     - Check and update `PUBLIC_README` in `export-public-orchestrator.mjs` if new features, architectural mechanisms, or workflows were introduced.
+     - Bump `ZEROBURN_VERSION` + `PUBLIC_CHANGELOG` in `export-public-orchestrator.mjs` (plus `plugin.json`, `project.config.json`, `project.config.example.json`, and script fallbacks).
+     - Run `EXPORT_ORCHESTRATOR_CMD` (`node .agents/scripts/export-public-orchestrator.mjs ../zeroburn`).
+     - Push feature branch, open PR, merge, and tag/release `v<ZEROBURN_VERSION>` in `../zeroburn` (`gh release create v<VERSION> --notes "..."`).
    - **Permission / Sandbox Boundary:** Operations on `../zeroburn` outside this workspace require explicit user permission (`BypassSandbox: true`); if sandbox blocks access to `../zeroburn`, report clearly so the coordinator can run the `../zeroburn` export, push, merge, and release with user approval.

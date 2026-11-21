@@ -5,6 +5,18 @@ The canonical version is stored in [`.agents/plugins/zeroburn/plugin.json`](.age
 
 ---
 
+## [2.4.0] - 2026-11-21
+
+### Added
+- **Track L Master Feature / Epic Branch Protocol (`AGENTS.md`, `ORCHESTRATION.md`, `VARIABLES.md`):**
+  - Defines the `epic/<epic-id>-<slug>` master branch strategy for multi-slice epics. Slices branch from and target the epic branch instead of `main`, completely eliminating deep PR stacking and rebase cascading across dependent sub-tasks. When all slices pass their verification gates and audits, the master epic branch merges to `main` atomically.
+- **Docs-Only Zero-Test Suite Fast-Path (`AGENTS.md`, `ORCHESTRATION.md`):**
+  - Explicitly bypasses `pnpm test`, Vitest, and Playwright E2E test runs when PRs or commits touch ONLY markdown or documentation files (`docs/**`, `*.md`, `.agents/**` rules) with zero application code changes, preserving valuable execution time and compute quota.
+- **Mandatory README Evaluation Rule in Orchestration (`ORCHESTRATION.md`):**
+  - Requires checking whether `README.md` updates are required on every ZeroBurn engine release.
+
+---
+
 ## [2.3.0] - 2026-11-21
 
 ### Added
