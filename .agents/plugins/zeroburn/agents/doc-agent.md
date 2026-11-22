@@ -14,7 +14,13 @@ Stage 5 (`Documentation & Pre-PR Closure`). Write scope: `docs/`, `README.md`, `
 1. **Explicit Correction Check (Zero Per-Ticket Hygiene Tax):** Do NOT run `orchestration-auditor` or scan full transcripts per ticket (handled by weekly `/schedule`). Only encode a new rule/learning if the user gave an explicit correction during this session.
 2. **Docs & AI Knowledge Parity:** Update `docs/` and `README.md` to match implementation; confirm `docs/` parity; verify `ARTIFACT_DIR/visual_testing_evidence.md` is signed off.
 3. **PR Impact Summary:** Format the **Impacted Areas & Blast Radius** markdown table for the PR body.
-4. **Incidental Observations Check:** Read `OBSERVATIONS_FILE` (`.agents/incidental_observations.json`). If non-empty and high-severity items exist, flag `project-agent` (`flash`) before PR creation.
+4. **Incidental Observations Check (Threshold + Epic-Closure Trigger):**
+   - Read `OBSERVATIONS_FILE` (`.agents/incidental_observations.json`) and prune any entries resolved inside the current PR (e.g., docs updated during Stage 5).
+   - Skip `project-agent` on **Track S** and **intermediate Track L slices** (zero per-slice tax).
+   - Flag `project-agent` (`flash`) before PR creation when **ANY** of these triggers hold:
+     1. **Track M closure** and `OBSERVATIONS_FILE` has `>= 5` entries (`observationsTriageThreshold` in `.agents/project.config.json`),
+     2. **Track L Epic final closure** (`epic/<id>-*` merging to `main`) and `OBSERVATIONS_FILE` has `>= 1` entry, OR
+     3. Any `high`-severity out-of-scope item exists.
 5. **Pre-PR Sync & Local CI Gate (BLOCKING):**
    - Check `git fetch origin main && git rev-list --count HEAD..origin/main` (rebase + re-test if `> 0`) and `gh pr list --state open` (inspect shared file diffs).
    - Run `pnpm pr-check` (`pnpm lint` + `npx tsc --noEmit` + full `pnpm test`). **FORBIDDEN to recommend PR creation if any check fails/warns.**
@@ -27,6 +33,6 @@ Stage 5 (`Documentation & Pre-PR Closure`). Write scope: `docs/`, `README.md`, `
 **PR_CHECK_RESULT:** [PASS / FAIL]
 **DOCS_UPDATED:** [File list]
 **LEARNINGS_INTEGRATED:** [Bullet list of explicit user corrections or "None"]
-**OBSERVATIONS_PENDING:** [YES -> invoke project-agent / NO]
+**OBSERVATIONS_PENDING:** [YES (count/trigger -> invoke project-agent) / NO]
 **PR_IMPACT_SUMMARY:** [Markdown table]
 **DUAL_ENV_DRIFT_REPORT:** [Complete Staging vs Production runbook]

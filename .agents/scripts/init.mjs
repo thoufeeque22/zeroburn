@@ -57,7 +57,7 @@ function loadPluginVersion(cwd) {
       }
     }
   }
-  return '2.3.0';
+  return '2.5.0';
 }
 
 function detectHardwareDefaults() {
@@ -232,6 +232,7 @@ function main() {
     requiredLocalModels: pinModels ? [ollama.resolvedCoder, ollama.resolvedProse] : ['auto'],
     localCoderModel: pinModels ? ollama.resolvedCoder : 'auto',
     localProseModel: pinModels ? ollama.resolvedProse : 'auto',
+    observationsTriageThreshold: Number(baseCfg.observationsTriageThreshold) || 5,
     paths: {
       ...repo.paths,
       ...(hasCustomProject ? baseCfg.paths || {} : {}),

@@ -15,7 +15,7 @@ Most multi-agent setups ("PM / Architect / Dev / QA prompt packs") drain your 5-
 
 ### Token & Quota Benchmark (Per Feature Ticket)
 
-| Metric | Standard Multi-Agent Pipeline | `zeroburn` v2.4.0 Engine | Savings |
+| Metric | Standard Multi-Agent Pipeline | `zeroburn` v2.5.0 Engine | Savings |
 | :--- | :--- | :--- | :--- |
 | Cloud `pro` Subagent Sessions | 6–9 sessions | **0–1 session** (`flash` default) | **~85% fewer `pro` calls** |
 | Exploratory File-Read Turns | 12–18 turns | **0–2 turns** (0-token Graph Pre-Fetch + `REPO_MAP_DIGEST`) | **~80% fewer turns** |
@@ -41,6 +41,8 @@ Most multi-agent setups ("PM / Architect / Dev / QA prompt packs") drain your 5-
    - `parallel-audit.py` deterministically verifies `git diff --name-only` against the Discovery blueprint in 0 tokens, and `workflow_common.py` + `pre-tool-guard.mjs` enforce exclusive file-path leases (`.agents/swarm_leases.json`) across parallel swarm workers.
 8. **Track L Master Epic Branches & Docs-Only Zero-Test Fast-Path:**
    - Multi-slice epics branch into and PR against dedicated `epic/<epic-id>-<slug>` master feature branches to eliminate deep PR stacking. Commits touching only documentation or markdown rules bypass full test suites (`pnpm test`, E2E) to save compute.
+9. **Cloud-Vetted Observation Intake & Hybrid Batch Triage (`parallel-audit.py` + `project-agent`):**
+   - `parallel-audit.py` feeds static + local Ollama findings into the cloud auditor to corroborate real debt and filter noise, persisting only vetted actionable `medium`/`low` items with `source_ticket` tracking. `doc-agent` and `session-start.mjs` trigger `project-agent` for domain-grouped batch issue triage at `observationsTriageThreshold` (default `5`) or Track L Epic closure.
 
 ---
 
@@ -70,7 +72,7 @@ CHANGELOG.md                        # Version history & upgrade notes
 │   └── quiet-cli.mjs               # 1-line tsc/lint/vitest wrapper + Judgment Kernel + api-map
 └── plugins/
     └── zeroburn/
-        ├── plugin.json             # Single source of truth for ZeroBurn version (v2.4.0)
+        ├── plugin.json             # Single source of truth for ZeroBurn version (v2.5.0)
         └── agents/                 # 8 specialized subagent definitions
 ```
 
