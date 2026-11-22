@@ -4,6 +4,44 @@
 >
 > *Engineered by the team building **[directly.social](https://directly.social)** (`@directlysocial`).*
 
+### 🚀 Try It Right Now in Your Own Repo (Zero Install, 10 Seconds)
+
+Paste this 1-liner inside **any Git repository** on your machine to see your exact discovery token savings and run a real-time **0-cloud-token Static AST + Local Ollama Diff Audit** on your current `git diff`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/thoufeeque22/zeroburn/main/benchmarks/try-now.mjs | node
+```
+
+<details>
+<summary><b>View sample live tabular output from a 1,465-file repository</b></summary>
+
+```text
+🔥 ZeroBurn v2.5.0 — Live Token-Savings Benchmark & 0-Token Diff Auditor
+📂 Repository: /Users/dev/my-app (branch: feat/billing-quota)
+
+📊 1. Context & Cloud Token Footprint (Standard Subagent vs ZeroBurn)
+┌────────────────────────────┬────────────────────────────┬─────────────────────────────┬────────────────┐
+│ Pipeline Stage             │ Vanilla Agent              │ ZeroBurn v2.5.0             │ Cloud Saved    │
+├────────────────────────────┼────────────────────────────┼─────────────────────────────┼────────────────┤
+│ 1. Repo & Route Discovery  │ 15,429 tok (1465 files)    │ 512 tok (5-line digest)     │ -96.7%         │
+│ 2. Rule & Docs Ingestion   │ 59,202 tok (4348 lines)    │ 195 tok (7-line digest)     │ -99.7%         │
+│ 3. Test Verification Logs  │ 6,816 tok (verbose log)    │ 17 tok (1-line quiet-cli)   │ -99.8%         │
+│ 4. Diff Security Audit     │ 3,500 tok (Cloud Pro)      │ 0 tok (Local Ollama + AST)  │ -100.0%        │
+├────────────────────────────┼────────────────────────────┼─────────────────────────────┼────────────────┤
+│ TOTAL (Single Agent Loop)  │ 84,947 cloud tokens        │ 724 cloud tokens            │ -99.1%         │
+│ 5-TURN CUMULATIVE BILLING  │ ~339,788 billed tokens     │ ~2,896 billed tokens        │ 336,892 saved  │
+└────────────────────────────┴────────────────────────────┴─────────────────────────────┴────────────────┘
+
+🛡️  2. Live 0-Cloud-Token Diff Audit (HEAD~1..HEAD — 3 changed file(s))
+┌────────────────────────────┬──────────┬──────────────┬─────────────────────────────────────────────────┐
+│ Audit Engine               │ Time     │ Cloud Cost   │ Verdict                                         │
+├────────────────────────────┼──────────┼──────────────┼─────────────────────────────────────────────────┤
+│ Static AST & Modularity    │ 0.01s    │ 0 cloud tok  │ ✅ PASS (<=200L, 0 `any`, line-1 actions)        │
+│ Ollama (qwen2.5-coder:14b) │ 8.92s    │ 0 cloud tok  │ ✅ PASS — Clean diff verified                    │
+└────────────────────────────┴──────────┴──────────────┴─────────────────────────────────────────────────┘
+```
+</details>
+
 ---
 
 ## Why `zeroburn` Exists
@@ -13,14 +51,42 @@ Most multi-agent setups ("PM / Architect / Dev / QA prompt packs") drain your 5-
 2. **Test Log Bloat:** Verbose test/lint runs (`vitest`, `eslint`, `tsc`) dump 500+ lines (~15,000 tokens) into context on every turn, which then gets re-billed on every subsequent turn ($O(N^2)$ context growth).
 3. **Frontier Models on Mechanical Checks:** Cloud `pro` / `Opus` models are spawned to check line counts, `any` types, and file blast radius that Python + local Ollama can verify in **0 cloud tokens**.
 
-### Token & Quota Benchmark (Per Feature Ticket)
+### Verified Production Benchmark (`directly.social` — 10,893 AST Nodes, 1,470 Source Files)
 
-| Metric | Standard Multi-Agent Pipeline | `zeroburn` v2.5.0 Engine | Savings |
+Measured on a real feature/audit loop (*"Locate and audit `checkUploadQuota` tier logic, run all 6 billing unit test suites (70 tests), and execute a diff security audit"*). Full raw traces and reproducible runner in [`benchmarks/REAL_WORLD_BENCHMARK.md`](benchmarks/REAL_WORLD_BENCHMARK.md):
+
+| Stage | Standard Coding Agent (Vanilla) | `zeroburn` v2.5.0 Engine | Measured Savings |
 | :--- | :--- | :--- | :--- |
-| Cloud `pro` Subagent Sessions | 6–9 sessions | **0–1 session** (`flash` default) | **~85% fewer `pro` calls** |
-| Exploratory File-Read Turns | 12–18 turns | **0–2 turns** (0-token Graph Pre-Fetch + `REPO_MAP_DIGEST`) | **~80% fewer turns** |
-| Test / Lint Log Context Cost | ~15,000 tokens / run | **~15 tokens / run** (`quiet-cli.mjs` + Judgment Kernel) | **99.9% log reduction** |
-| Diff & Modularity Audit | 3 parallel cloud subagents | **0-token Python AST/Blast-Radius + Local Ollama + 1 Cloud Auditor** | **~70% stage savings** |
+| **1. Repo & Route Discovery** | `find src -type f` (`1,470` lines / **15,454 tokens**) | `build_repo_map_digest()` (`6` lines / **636 tokens**: 28 Prisma models, 32 domains, 60 API routes) | **-95.9% tokens** |
+| **2. Governance & Rule Loading** | `cat .agents/AGENTS.md .agents/base/*.md` (`276` lines / **10,274 tokens**) | Pre-computed inlined rule digests (`7` lines / **195 tokens**) | **-98.1% tokens** |
+| **3. Symbol Localization** | `grep -rn "quota" src/lib/` (`64` matches / **1,921 tokens**) + exploratory reads | `codebase-memory-mcp` `search_graph` -> `FreemiumGuard.checkUploadQuota` (`src/lib/billing/freemium-guard.ts:43-83`) in **0 LLM tokens** | **-100% exploratory LLM tokens** |
+| **4. Unit Test Run (6 suites, 70 tests)** | `npx vitest run` (`243` lines / **6,816 tokens** per run) | `node .agents/scripts/quiet-cli.mjs unit` (`1` line / **17 tokens**) | **-99.75% test log tokens** |
+| **5. Diff Security & Quality Audit** | Cloud `Pro` / `Opus` subagent review (**~12,000+ cloud tokens**) | 0-token Python AST/Blast-Radius + Local Ollama `qwen2.5-coder:14b-custom` (`13.43s`, **0 cloud tokens**) | **100% cloud audit quota saved** |
+| **Single-Pass Overhead Total** | **46,465+ Cloud Tokens** | **848 Cloud Tokens** | **98.2% Reduction** |
+
+#### ⚡ 30-Second Before vs After (Actual Terminal Trace)
+
+```text
+❌ WITHOUT ZEROBURN (Standard Subagent — 46,465 tokens burned before writing code):
+$ find src -type f                                  # 1,470 lines  (15,454 tokens)
+$ cat .agents/AGENTS.md .agents/base/*.md           #   276 lines  (10,274 tokens)
+$ grep -rn "quota" src/lib/                         #    64 lines  ( 1,921 tokens)
+$ npx vitest run src/__tests__/unit/*billing*       #   243 lines  ( 6,816 tokens)
+$ [Spawns Cloud Pro Subagent for Diff Review]       #              (12,000 tokens)
+----------------------------------------------------------------------------------
+💥 Result: 46,465+ tokens & ~185,000 cumulative billed tokens across a 5-turn loop.
+
+✅ WITH ZEROBURN v2.5.0 (848 tokens — 98.2% reduction):
+$ [codebase-memory-mcp] search_graph("billing tier quota check")   #     0 tokens
+  -> FreemiumGuard.checkUploadQuota (src/lib/billing/freemium-guard.ts:43-83)
+$ [Inlined REPO_MAP_DIGEST + Rule Digests]                         #   831 tokens
+  -> 28 Prisma Models | 32 src/lib domains | 60 API Routes
+$ node .agents/scripts/quiet-cli.mjs unit src/__tests__/unit/*billing*
+  -> [quiet-cli] unit: PASS (Test Files 6 passed (6), Tests 70 passed (70)) # 17 tokens
+$ [parallel-audit.py] Python AST + Local Ollama qwen2.5-coder      #     0 cloud tokens
+----------------------------------------------------------------------------------
+⚡ Result: 848 tokens total. Surgical edit on Turn 1. Zero cloud Pro audit burn.
+```
 
 ---
 
@@ -50,6 +116,10 @@ Most multi-agent setups ("PM / Architect / Dev / QA prompt packs") drain your 5-
 
 ```text
 CHANGELOG.md                        # Version history & upgrade notes
+benchmarks/
+├── REAL_WORLD_BENCHMARK.md         # Verified A/B benchmark on 10,893-node production repo
+├── try-now.mjs                     # Zero-install live token benchmark & local Ollama diff auditor
+└── run_benchmark.py                # Reproducible Python A/B benchmark runner
 .agents/
 ├── AGENTS.md                       # Global management policies & Subagent Registry
 ├── project.config.json             # Single declarative config (stamps zeroburnVersion)
@@ -66,6 +136,7 @@ CHANGELOG.md                        # Version history & upgrade notes
 │   └── pre-tool-guard.mjs          # Secret guard, Swarm file-lease guard, 100-line guard
 ├── scripts/
 │   ├── init.mjs                    # 1-command auto-detector & version upgrader (--pull, --pin, --version)
+│   ├── live-audit.mjs              # Real-time 0-cloud-token diff auditor & context calculator
 │   ├── workflow_common.py          # Shared FALLBACK_CHAINS, dynamic Ollama resolution, Graph pre-fetch, Swarm leases
 │   ├── parallel-discovery.py       # Stage 1: Product || Discovery workflow
 │   ├── parallel-audit.py           # Stage 4: 0-token Python/Blast-Radius + Local Ollama + 1 Cloud Auditor
