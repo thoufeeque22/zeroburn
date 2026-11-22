@@ -100,7 +100,6 @@ Follow `Issue -> Branch/Worktree -> Triage -> Artifact`:
   2. **Track L Epic final closure** (`epic/<id>-*` merging to `main`) and `OBSERVATIONS_FILE` has `>= 1` entry, OR
   3. Any `high`-severity out-of-scope entry exists.
 - **Zero Per-Ticket Hygiene Tax & Rule Expiry Tags ("Harness Rot" Prevention):** Do NOT run `orchestration-auditor` or full transcript mining on every ticket. Capture learnings on demand via `/learn` (or explicit user correction) and run `orchestration-auditor` plus a weekly `/schedule` safety-net triage for any `< 5` leftover observations sitting for > 7 days. Tag any model-specific workaround rule with `[EXPIRY: <model-or-condition>]` so `system-agent` can prune obsolete prompt rules as models improve.
-- **Living Tips & Tricks Knowledge Loop:** Whenever an agent, developer, or `/learn` session identifies an orchestration efficiency, token-saving shortcut (e.g. 1-line minimalist ticket prompts without redundant epic branch mentions, `/compact` timing, clean session restarts), or workflow pattern, append and refine it directly in `.agents/docs/TIPS_AND_TRICKS.md`. Include updates to this guide in the regular upstream ZeroBurn release sync.
 
 ## 6. Pre-PR Closure & Dual-Environment Operations Gate
 

@@ -7,17 +7,20 @@
 ## ⚡ Quick Start & Live Demo (10 Seconds)
 
 **Option A — Try it live in your own repo right now (Zero Install):**
-Paste this 1-liner inside **any Git repository** on your machine to see your exact discovery token savings and run a real-time **0-cloud-token Static AST + Local Ollama Diff Audit** on your current `git diff`:
+Paste this inside **any Git repository** on your machine to see your exact discovery token savings and run a real-time **0-cloud-token Static AST + Local Ollama Diff Audit** on your current `git diff`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/thoufeeque22/zeroburn/main/benchmarks/try-now.mjs | node
+curl -fsSL https://github.com/thoufeeque22/zeroburn/raw/main/benchmarks/try-now.mjs \
+  | node
 ```
 
 **Option B — Install ZeroBurn into your project (1 Command):**
-Clones `.agents/`, auto-detects your stack (`Next.js`, `TypeScript`, `Prisma`), dynamically resolves your installed local Ollama models (`"auto"`), and configures 1-line `quiet-cli` verification:
+Clones `.agents/`, auto-detects your stack (`Next.js`, `TypeScript`, `Prisma`), dynamically resolves your installed local Ollama models (`"auto"`), pulls a hardware-sized local model if none is installed (`<24GB` RAM -> `7b`, `>=24GB` -> `14b`), and configures 1-line `quiet-cli` verification:
 
 ```bash
-git clone https://github.com/thoufeeque22/zeroburn /tmp/zb && cp -R /tmp/zb/.agents . && rm -rf /tmp/zb && node .agents/scripts/init.mjs --pull
+git clone --depth 1 https://github.com/thoufeeque22/zeroburn /tmp/zb \
+  && cp -R /tmp/zb/.agents . && rm -rf /tmp/zb \
+  && node .agents/scripts/init.mjs --pull
 ```
 
 ![ZeroBurn Live Benchmark & 0-Token Diff Auditor](benchmarks/zeroburn-benchmark.png)
@@ -158,22 +161,6 @@ benchmarks/
         ├── plugin.json             # Single source of truth for ZeroBurn version (v2.6.0)
         └── agents/                 # 8 specialized subagent definitions
 ```
-
----
-
-## Quick Start (1 Command)
-
-Copy `.agents/` into your repository root and run the auto-initializer:
-
-```bash
-node .agents/scripts/init.mjs --pull
-```
-
-What `init.mjs` does automatically:
-1. **Auto-Detects Your Stack & Paths:** Scans `package.json`, `tsconfig.json`, `prisma/schema.prisma`, `src/lib`, and `src/app/actions` to populate `.agents/project.config.json`.
-2. **Dynamic Local Model Resolution (`"auto"`):** Queries local Ollama (`/api/tags`) and uses any coder/prose models you **already have installed** with zero config edits.
-3. **Hardware-Aware Auto-Pull (`--pull`):** Only if no suitable local model is installed yet, detects your machine's RAM (`<24GB` -> `7b`, `>=24GB` -> `14b`) and pulls the right model automatically (pass `--pin` to lock exact tags).
-4. **Zero-Noise Verification:** Run `node .agents/scripts/quiet-cli.mjs pr-check` for 1-line agent verification receipts.
 
 ---
 
