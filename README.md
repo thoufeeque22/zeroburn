@@ -76,7 +76,7 @@ Most multi-agent setups ("PM / Architect / Dev / QA prompt packs") drain your 5-
 
 Measured on a real feature/audit loop (*"Locate and audit `checkUploadQuota` tier logic, run all 6 billing unit test suites (70 tests), and execute a diff security audit"*). Full raw traces and reproducible runner in [`benchmarks/REAL_WORLD_BENCHMARK.md`](benchmarks/REAL_WORLD_BENCHMARK.md):
 
-| Stage | Standard Coding Agent (Vanilla) | `zeroburn` v2.7.0 Engine | Measured Savings |
+| Stage | Standard Coding Agent (Vanilla) | `zeroburn` v2.8.0 Engine | Measured Savings |
 | :--- | :--- | :--- | :--- |
 | **1. Repo & Route Discovery** | `find src -type f` (`1,470` lines / **15,454 tokens**) | `build_repo_map_digest()` (`6` lines / **636 tokens**: 28 Prisma models, 32 domains, 60 API routes) | **-95.9% tokens** |
 | **2. Governance & Rule Loading** | `cat .agents/AGENTS.md .agents/base/*.md` (`276` lines / **10,274 tokens**) | Pre-computed inlined rule digests (`7` lines / **195 tokens**) | **-98.1% tokens** |
@@ -97,7 +97,7 @@ $ [Spawns Cloud Pro Subagent for Diff Review]       #              (12,000 token
 ----------------------------------------------------------------------------------
 💥 Result: 46,465+ tokens & ~185,000 cumulative billed tokens across a 5-turn loop.
 
-✅ WITH ZEROBURN v2.7.0 (848 tokens — 98.2% reduction):
+✅ WITH ZEROBURN v2.8.0 (848 tokens — 98.2% reduction):
 $ [codebase-memory-mcp] search_graph("billing tier quota check")   #     0 tokens
   -> FreemiumGuard.checkUploadQuota (src/lib/billing/freemium-guard.ts:43-83)
 $ [Inlined REPO_MAP_DIGEST + Rule Digests]                         #   831 tokens
@@ -184,7 +184,7 @@ benchmarks/
 │   └── quiet-cli.mjs               # 1-line tsc/lint/vitest wrapper + Judgment Kernel + api-map
 └── plugins/
     └── zeroburn/
-        ├── plugin.json             # Single source of truth for ZeroBurn version (v2.7.0)
+        ├── plugin.json             # Single source of truth for ZeroBurn version (v2.8.0)
         └── agents/                 # 8 specialized subagent definitions
 ```
 
