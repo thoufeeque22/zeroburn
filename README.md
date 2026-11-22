@@ -2,9 +2,13 @@
 
 > **Cut AI coding-agent cloud API token & quota burn by 70–83%** by eliminating test/discovery output bloat, querying local code graphs, running deterministic AST/scope checks, and offloading mechanical failure analysis and diff reviews to local Ollama models — without sacrificing Contract-First TDD or strict quality gates.
 >
+> *Works across any coding agent harness and frontier model family (Google Gemini, Anthropic Claude, OpenAI, Cursor, Antigravity).*
+>
 > *Engineered by the team building **[directly.social](https://directly.social)** (`@directlysocial`).*
 
 ## ⚡ Quick Start & Live Demo (10 Seconds)
+
+> **Prerequisites:** Any Git repository (GitHub, GitLab, Bitbucket, or local Git), Node.js 18+, and (optional) local Ollama. No GitHub account or `gh` login required.
 
 **Option A — Try it live in your own repo right now (Zero Install):**
 Paste this inside **any Git repository** on your machine to see your exact discovery token savings and run a real-time **0-cloud-token Static AST + Local Ollama Diff Audit** on your current `git diff`:
@@ -22,6 +26,17 @@ git clone --depth 1 https://github.com/thoufeeque22/zeroburn /tmp/zb \
   && cp -R /tmp/zb/.agents . && rm -rf /tmp/zb \
   && node .agents/scripts/init.mjs --pull
 ```
+
+**How to trigger in chat:** Once installed, open your coding agent (Antigravity, Cursor, Claude Code) and tell it what to build—either with an issue reference or a plain English task:
+
+```text
+# With a GitHub issue:
+start orchestration workflow on #1043
+
+# Or without GitHub / plain local task:
+implement tier-based upload quota limits in src/lib/billing
+```
+*(No GitHub login required. ZeroBurn automatically locates the relevant symbols via local AST graphs, runs quiet 1-line test verification, and guides the development loop in minimal cloud tokens).*
 
 ![ZeroBurn Live Benchmark & 0-Token Diff Auditor](benchmarks/zeroburn-benchmark.png)
 
@@ -59,16 +74,16 @@ git clone --depth 1 https://github.com/thoufeeque22/zeroburn /tmp/zb \
 
 ## Why `zeroburn` Exists
 
-Most multi-agent setups ("PM / Architect / Dev / QA prompt packs") drain your 5-hour and weekly Claude / Gemini usage limits in two tickets because:
+Most multi-agent setups ("PM / Architect / Dev / QA prompt packs") drain your 5-hour and weekly frontier LLM usage limits (Gemini, Claude, OpenAI) in two tickets because:
 1. **Blank-Slate Subagent Tax:** Every subagent starts fresh and wastes 3–5 turns re-reading markdown rule files, directory trees, and full source files.
 2. **Test Log Bloat:** Verbose test/lint runs (`vitest`, `eslint`, `tsc`) dump 500+ lines (~15,000 tokens) into context on every turn, which then gets re-billed on every subsequent turn ($O(N^2)$ context growth).
-3. **Frontier Models on Mechanical Checks:** Cloud `pro` / `Opus` models are spawned to check line counts, `any` types, and file blast radius that Python + local Ollama can verify in **0 cloud tokens**.
+3. **Frontier Models on Mechanical Checks:** Expensive frontier models (`Gemini Pro`, `Claude Opus/Sonnet`, `GPT-4o`) are spawned to check line counts, `any` types, and file blast radius that Python + local Ollama can verify in **0 cloud tokens**.
 
 ### Verified Production Benchmark (`directly.social` — 10,893 AST Nodes, 1,470 Source Files)
 
 Measured on a real feature/audit loop (*"Locate and audit `checkUploadQuota` tier logic, run all 6 billing unit test suites (70 tests), and execute a diff security audit"*). Full raw traces and reproducible runner in [`benchmarks/REAL_WORLD_BENCHMARK.md`](benchmarks/REAL_WORLD_BENCHMARK.md):
 
-> **Note on Token Accounting:** "Cloud Tokens" refers strictly to billed API tokens sent to frontier LLM APIs (e.g. Claude/Gemini). Mechanical tasks (first-pass diff review, failure log triage) are offloaded to an on-device local Ollama instance (`127.0.0.1:11434`), reducing billed cloud API tokens by 98.2% without skipping verification gates.
+> **Note on Token Accounting:** "Cloud Tokens" refers strictly to billed API tokens sent to frontier LLM APIs (Gemini, Claude, OpenAI, etc.). Mechanical tasks (first-pass diff review, failure log triage) are offloaded to an on-device local Ollama instance (`127.0.0.1:11434`), reducing billed cloud API tokens by 98.2% without skipping verification gates.
 
 | Stage | Standard Coding Agent (Vanilla) | `zeroburn` v2.6.0 Engine | Measured Savings |
 | :--- | :--- | :--- | :--- |
@@ -76,7 +91,7 @@ Measured on a real feature/audit loop (*"Locate and audit `checkUploadQuota` tie
 | **2. Governance & Rule Loading** | `cat .agents/AGENTS.md .agents/base/*.md` (`276` lines / **10,274 tokens**) | Pre-computed inlined rule digests (`7` lines / **195 tokens**) | **-98.1% tokens** |
 | **3. Symbol Localization** | `grep -rn "quota" src/lib/` (`64` matches / **1,921 tokens**) + exploratory reads | `codebase-memory-mcp` `search_graph` -> `FreemiumGuard.checkUploadQuota` (`src/lib/billing/freemium-guard.ts:43-83`) in **0 LLM tokens** | **-100% exploratory LLM tokens** |
 | **4. Unit Test Run (6 suites, 70 tests)** | `npx vitest run` (`243` lines / **6,816 tokens** per run) | `node .agents/scripts/quiet-cli.mjs unit` (`1` line / **17 tokens**) | **-99.75% test log tokens** |
-| **5. Diff Security & Quality Audit** | Cloud `Pro` / `Opus` subagent review (**~12,000+ cloud tokens**) | 0-token Python AST/Blast-Radius + Local Ollama `qwen2.5-coder:14b-custom` (`13.43s`, **0 cloud tokens**) | **100% cloud audit quota saved** |
+| **5. Diff Security & Quality Audit** | Cloud Frontier subagent review (**~12,000+ cloud tokens**) | 0-token Python AST/Blast-Radius + Local Ollama `qwen2.5-coder:14b-custom` (`13.43s`, **0 cloud tokens**) | **100% cloud audit quota saved** |
 | **Single-Pass Overhead Total** | **46,465+ Cloud Tokens** | **848 Cloud Tokens** | **98.2% Reduction** |
 
 #### ⚡ 30-Second Before vs After (Actual Terminal Trace)
