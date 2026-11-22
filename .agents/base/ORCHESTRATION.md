@@ -37,8 +37,8 @@ The user grants standing authorization for the Orchestrator to enforce the **Hyb
   5. **Pre-Computed `REPO_MAP_DIGEST` + Graph Pre-Fetch:** `workflow_common.py` dynamically builds and injects `REPO_MAP_DIGEST` (all Prisma models, `src/lib/*` domains, `src/app/actions/*` paths, core singletons) so agents never spend turns listing directories.
   6. **Caveman Output Compression:** Subagents and internal workflow stages reply in terse caveman-compressed bullet receipts / strict JSON (`file:line` + action/reason only; zero pleasantries or filler prose).
   7. **Artifact-Checkpoint Compaction (`/compact`):** Use one chat per ticket and recommend `/compact` after Stage 1 (`Discovery`) or Stage 2 (`Development`) when conversation history exceeds ~15 tool turns.
-  8. **The 4-Handoff Cliff Cap & Test Failure Triage (Judgment Kernel):** Keep standard Track M pipelines at `≤ 4` agent handoffs (for routine non-auth/non-tier Track M tickets, `dev-agent` may author and verify the Playwright E2E spec in-context before handing off to Stage 4 `Hybrid Audit`). When `quiet-cli.mjs` encounters a >12-line test/build failure, it invokes the local Ollama `gemma4:latest` failure summarizer (Judgment Kernel) to emit a 3-line root-cause digest in 0 cloud tokens while preserving the raw 35-line stderr tail.
-  9. **Worker File Leases (Concurrency Lockfile) & 0-Token API Route Map:** On Track L parallel swarms, claim exclusive file paths in `.agents/swarm_leases.json` via `claim_file_leases(worker_id, file_paths)` (enforced by `pre-tool-guard.mjs` when `SWARM_WORKER_ID` is set) to prevent simultaneous file collisions across workers. Use `node .agents/scripts/quiet-cli.mjs api-map` (and `REPO_MAP_DIGEST`) for 0-token `/api/**` endpoint introspection.
+  8. **The 4-Handoff Cliff Cap & Judgment Kernel:** Keep standard Track M pipelines at `≤ 4` agent handoffs (for routine non-auth/non-tier Track M tickets, `dev-agent` may author and verify the Playwright E2E spec in-context before handing off to Stage 4 `Hybrid Audit`). When `quiet-cli.mjs` encounters a >12-line test/build failure, it invokes the local Ollama `gemma4:latest` **Judgment Kernel** to emit a 3-line root-cause digest in 0 cloud tokens.
+  9. **Swarm File-Path Leases & 0-Token API Route Map:** On Track L parallel swarms, claim exclusive file paths in `.agents/swarm_leases.json` via `claim_file_leases(worker_id, file_paths)` (enforced by `pre-tool-guard.mjs` when `SWARM_WORKER_ID` is set). Use `node .agents/scripts/quiet-cli.mjs api-map` (and `REPO_MAP_DIGEST`) for 0-token `/api/**` endpoint introspection.
 - **Track L Cross-Family Swarm Matrix (`swarm`, epics with parallel non-overlapping slices):**
   - Builders (Next.js/TS/Prisma/MUI): `Claude Sonnet 5.5 (Medium)` (or `Claude Opus 5.5 (High)` for complex slices) in `workspace: "share"`.
   - Deep Discovery & Cross-Family Verifier / Security Auditor: `Gemini 4 Neon (High)` (or `Gemini 4 Argon (High)` reserve) in `workspace: "inherit"`.
@@ -48,7 +48,7 @@ The user grants standing authorization for the Orchestrator to enforce the **Hyb
 ## 2. Stage 0: Initialization, Worktree Option & Track Triage
 
 Follow `Issue -> Branch/Worktree -> Triage -> Artifact`:
-1. **Resolve Ticket ID or Task Slug:** Parse request for issue number/URL or plain task description. If an issue number/URL is provided and `gh` is authenticated, query GitHub (`gh issue view <num>`). If no GitHub issue exists or `gh` is not logged in, derive a concise local task slug (e.g. `feat/upload-quota` or `fix/auth-callback`) and track the plan in `ARTIFACT_DIR/plan.md`. Never require GitHub login for local work.
+1. **Resolve Ticket ID:** Parse request or query GitHub (`gh issue view <num>`). Never invent an ID. If no issue exists, invoke `project-agent` (`Model="flash"`) first.
 2. **Pre-Flight Branch Guard & Epic Branch Strategy (Zero-Stranded Branch Policy):**
    - **Track S / Track M:**
      - Run `git rev-list --count HEAD ^origin/main`. If ahead, check `gh pr list --head $(git branch --show-current) --state all --json state,number`:
@@ -65,7 +65,18 @@ Follow `Issue -> Branch/Worktree -> Triage -> Artifact`:
    - **Track S (Quick Fix / Chore):** ≤ 3 files, zero DB schema, tier, security, or UI-architecture changes.
    - **Track M (Standard Feature / Bug):** 1 PR, ≤ ~10 files.
    - **Track L (Complex Epic):** > 2 phases, > 10 files, or spans schema + billing + security + UI/mobile.
-4. **Initial Artifact:** Write ticket plan/status via `write_file` in `ARTIFACT_DIR`.
+4. **Stage 0 Work-Resume & Pre-Spec Inspection (Smart Stage 1 Bypass Gate):**
+   Before invoking Stage 1 (`Product || Discovery`), inspect the active branch/worktree (`git log <base>..HEAD`, `git status -s`) and the GitHub issue body (`gh issue view <num>`):
+   - **(A) Already-In-Progress Branch / Worktree Resume ("Already Worked Upon"):**
+     - If `feature/<id>-*` already has implementation commits ahead of `<base>` (`main` or `epic/<epic-id>-*`), active source diffs, or an existing `discovery_blueprint.md`, **skip Stage 1 (`Product || Discovery`) completely in 0 tokens**.
+     - Synthesize or reuse `ARTIFACT_DIR/discovery_blueprint.md` from `git diff --name-only <base>...HEAD` + the issue body, and resume directly at **Stage 2 (`Development`)** (if implementation/unit tests are incomplete), **Stage 3 (`QA Verification`)** (if code + unit tests pass and E2E is pending), or **Stage 4 (`Hybrid Audit`)** (if E2E already passes).
+   - **(B) Pre-Specced Issues (Track L Child Sub-Issues, Observation-Triage Tickets & Detailed Bug Reports -> `skip_discovery=True`):**
+     - If the GitHub issue body already specifies the target files (blast radius), technical contract, and acceptance criteria (e.g., Native GitHub Sub-Issues decomposed by a Parent Track L Epic's Discovery, or batch-triaged debt issues from `.agents/incidental_observations.json`), **skip `discovery-agent` in 0 cloud tokens** (`skip_discovery=True`).
+     - Use a 0-token `codebase-memory-mcp` `search_graph` pre-fetch + the issue's declared file list to write `ARTIFACT_DIR/discovery_blueprint.md` directly.
+   - **(C) Selective `product-agent` Gate (`skip_product=True` by default on non-UX-strategy tickets):**
+     - **Skip `product-agent` in 0 tokens** (`pure_backend=True` or `skip_product=True`) for: pure backend/infra, bug fixes, refactors, performance/a11y remediation, test-only tickets, Track L child sub-issues whose parent Epic already defined the UX/tier matrix, and tickets where UX copy and tier rules are already unambiguous in the issue body.
+     - **Spawn `product-agent` ONLY** when a ticket introduces net-new user-facing UX flows, ambiguous customer copy, or new/modified tier entitlement & pricing decisions.
+5. **Initial Artifact:** Write ticket plan/status via `write_file` in `ARTIFACT_DIR`.
 
 ## 3. Epic Sub-Issue Splitting Protocol (Hybrid Rule)
 
@@ -81,7 +92,12 @@ Follow `Issue -> Branch/Worktree -> Triage -> Artifact`:
 - **Docs-Only Bypass Rule:** When changes touch ONLY markdown/documentation files (e.g. `*.md`, `docs/**`, `.agents/**` markdown rules) with zero application code (`src/**`) or schema (`prisma/**`) diffs, **skip all test suites entirely** (`pnpm test`, Vitest, Playwright, E2E). Only run syntax/lint checks (`pnpm lint` or static doc link verification) if applicable. Never waste time or quota running unit/integration/E2E tests for pure documentation updates.
 
 ### Track M / Track L Pipeline (Contract-First TDD, Selector-Last E2E)
-1. **Stage 1 — `Product || Discovery`:** Run `product-agent` (`flash`, skipped in 0 tokens when `pure_backend=True`) and `discovery-agent` (`flash` on standard Track M; `pro` on Track L or high-risk auth/billing/schema/AI) concurrently via `run_workflow(ScriptPath=PARALLEL_DISCOVERY_WORKFLOW)` (hard-stops if local Ollama is down). Output `ARTIFACT_DIR/discovery_blueprint.md` containing the 5-Dimension Blast Radius, **QA Acceptance Contract + `data-testid` spec**, and (for Track L) the Sub-Issue Split Proposal.
+1. **Stage 1 — `Product || Discovery` (Smart Bypass & Selective Spawn):**
+   - Apply the **Stage 0 Work-Resume & Pre-Spec Inspection Gate** first:
+     - If the branch is **already worked upon** (has commits/WIP) OR the issue is **fully pre-specced** (`skip_product=True` and `skip_discovery=True`), bypass cloud Stage 1 subagents in **0 cloud tokens** (run `PARALLEL_DISCOVERY_WORKFLOW` with `skip_product=True, skip_discovery=True` or write `ARTIFACT_DIR/discovery_blueprint.md` directly from the issue spec + 0-token `search_graph` pre-fetch) and proceed immediately to Stage 2/3/4.
+     - If only `discovery-agent` is needed (`pure_backend=True` or `skip_product=True` for bugfixes, refactors, a11y/perf, or pre-specced UX/tiers), `PARALLEL_DISCOVERY_WORKFLOW` skips `product-agent` in 0 tokens and runs only `discovery-agent` (`flash` on standard Track M; `pro` on Track L or high-risk auth/billing/schema/AI).
+     - If both net-new UX/tier strategy and technical discovery are needed, run `product-agent` (`flash`, or `pro` for pricing) and `discovery-agent` concurrently via `run_workflow(ScriptPath=PARALLEL_DISCOVERY_WORKFLOW)`.
+   - Output `ARTIFACT_DIR/discovery_blueprint.md` containing the 5-Dimension Blast Radius, **QA Acceptance Contract + `data-testid` spec**, and (for Track L parent Epics) the Sub-Issue Split Proposal.
    - **Human Gate #1:** Pause ONLY if Verdict is `NEEDS-INFO` / `REJECTED` or Track L Sub-Issue split needs approval.
 2. **Stage 2 — `Development` (`dev-agent`):** Write Vitest unit/Server Action contract tests FIRST, implement modular code (`≤ 200` lines) within Blast Radius (using `architect` on Track L only) complying with [UI_UX.md](UI_UX.md) (including Customer UI Copy Policy & Term-Tooltip Standard), spot-check live UI with `browser` (`flash`) + `agentation` MCP, and run `TYPE_CHECK_CMD`, `LINT_CMD`, `UNIT_TEST_CMD`, `SMOKE_TEST_CMD`.
 3. **Stage 3 — `QA Verification` (`qa-agent`):** Write/run Playwright `E2E_TEST_FILE_PATTERN` against real `data-testid`s (Reload Rule + Dual-Persona Tier Gate + Light/Dark `checkA11y` + `375px` overflow + screenshots in `SCREENSHOT_DIR`) and **compile `ARTIFACT_DIR/visual_testing_evidence.md`**. Author `MANUAL_TEST_FILE_PATTERN` ONLY for flows Playwright cannot automate.
@@ -107,7 +123,7 @@ Before requesting commit/push permission or running `gh pr create`, complete ALL
 1. **Upstream Rebase & In-Flight PR Scan:**
    - `git fetch origin main && git rev-list --count HEAD..origin/main`. If `> 0`, rebase on `origin/main` and re-run `pnpm pr-check` + E2E.
    - Run `gh pr list --state open`; inspect `gh pr diff <num>` on any PR touching shared files (`src/lib/billing/*`, `prisma/schema.prisma`) to prevent collisions.
-2. **Local CI Gate:** Run `PR_CHECK_CMD` (`pnpm pr-check`: 0 lint errors/warnings, 0 `tsc` errors, 100% passing `pnpm test`). *Exception: For pure documentation/orchestration rule updates (`docs/**`, `*.md`, `.agents/**` docs without code changes), skip test runs (`pnpm test`) and run only `pnpm lint` / type-checking if relevant.*
+2. **Local CI Gate & Dependency Parity:** Run `PR_CHECK_CMD` (`pnpm pr-check` / `node .agents/scripts/quiet-cli.mjs pr-check`: declared `package.json` dependency parity guard against phantom local hoisted packages, 0 lint errors/warnings, 0 `tsc` errors, 100% passing `pnpm test`). *Exception: For pure documentation/orchestration rule updates (`docs/**`, `*.md`, `.agents/**` docs without code changes), skip test runs (`pnpm test`) and run only `pnpm lint` / type-checking if relevant.*
 3. **Production Data Integrity Check:** Confirm real DB models/constraints persist across page reload (`NODE_ENV === 'production'` path intact).
 4. **Staging & Production Operations & Drift Report:** Run `DRIFT_REPORT_CMD` (`pnpm run drift-report`), enrich with exact Staging (Vercel / `.env.preview`) vs Production (VPS `.env`) retrieval/CLI commands, external service steps (Stripe, object storage, background queues, OAuth/DNS), and present directly in chat alongside both smoke check commands (`node scripts/smoke-test.mjs https://app.example.com` and `https://app.example.com`).
 5. **ZeroBurn (`../zeroburn`) Public Sync & Release Policy:**

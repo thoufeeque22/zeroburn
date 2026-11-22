@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.abspath(".agents/scripts"))
@@ -15,16 +16,58 @@ from workflow_common import (  # noqa: E402
     run_agent_with_fallback,
 )
 
+
+def detect_in_progress_branch_files(base_ref: str = "origin/main") -> list[str]:
+    """Return modified/committed file paths if the current branch already has work in progress."""
+    files = set()
+    try:
+        committed = subprocess.check_output(
+            ["git", "diff", "--name-only", f"{base_ref}...HEAD"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+        for line in committed.splitlines():
+            if line.strip():
+                files.add(line.strip())
+    except Exception:
+        pass
+    try:
+        unstaged = subprocess.check_output(
+            ["git", "diff", "--name-only", "HEAD"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+        for line in unstaged.splitlines():
+            if line.strip():
+                files.add(line.strip())
+    except Exception:
+        pass
+    return sorted(files)
+
+
 ticket_id = args.get("ticket_id", "unknown")
 summary = args.get("summary", "")
 artifact_dir = args.get("artifact_dir", "")
 track = args.get("track", "M")
+base_ref = args.get("base_ref", "origin/main")
 pricing = bool(args.get("pricing_strategy", False))
 pure_backend = bool(args.get("pure_backend", False))
+skip_product = bool(args.get("skip_product", False)) or pure_backend
+skip_discovery = bool(args.get("skip_discovery", False))
+pre_specced_files = args.get("pre_specced_files", []) or []
 allow_cloud_only = bool(args.get("allow_cloud_only", False))
 
+in_progress_files = detect_in_progress_branch_files(base_ref)
+already_worked_on = bool(args.get("already_worked_on", False)) or len(in_progress_files) > 0
+
+if already_worked_on and not bool(args.get("force_stage1", False)):
+    skip_product = True
+    skip_discovery = True
+
 call_tool_fn = globals().get("call_tool")
-await ensure_local_ollama_up(log, call_tool_fn, allow_cloud_only)
+if not (skip_product and skip_discovery):
+    await ensure_local_ollama_up(log, call_tool_fn, allow_cloud_only)
+
 graph_nodes_digest = await prefetch_graph_search(call_tool_fn, log, summary, limit=15)
 
 product_schema = {
@@ -92,33 +135,69 @@ discovery_prompt = (
 )
 
 is_high_risk = track == "L" or pricing or any(k in summary.lower() for k in HIGH_RISK_KEYWORDS)
-discovery_tier = "pro" if is_high_risk else "flash"
+discovery_tier = "0-token-bypass" if skip_discovery else ("pro" if is_high_risk else "flash")
 
 discovery_task = {
     "role": "Discovery Architect",
     "type_name": "discovery-agent",
-    "model": discovery_tier,
+    "model": "pro" if is_high_risk else "flash",
     "prompt": discovery_prompt,
     "schema": discovery_schema,
 }
 
-if pure_backend:
-    log("[Fast-Lane] Pure backend/infra ticket: skipping product-agent spawn (0 tokens).")
-    product_res = {
-        "verdict": "APPROVED",
-        "questions": [],
-        "ux_copy_summary": "APPROVED (N/A - Internal Backend/Infra)",
-        "tier_matrix": "No UI/tier surface change",
-    }
+product_task = {
+    "role": "Product Strategist",
+    "type_name": "product-agent",
+    "model": "pro" if pricing else "flash",
+    "prompt": product_prompt,
+    "schema": product_schema,
+}
+
+fast_lane_product_res = {
+    "verdict": "APPROVED",
+    "questions": [],
+    "ux_copy_summary": (
+        "APPROVED (Fast-Lane 0-Token Bypass: In-Progress Branch)"
+        if already_worked_on
+        else (
+            "APPROVED (N/A - Internal Backend/Infra)"
+            if pure_backend
+            else "APPROVED (Fast-Lane 0-Token Bypass: Pre-Specced UX / Bugfix / Refactor)"
+        )
+    ),
+    "tier_matrix": "Existing or pre-specced tier contract applies",
+}
+
+merged_blast_files = sorted(set(pre_specced_files) | set(in_progress_files))
+fast_lane_discovery_res = {
+    "verdict": "APPROVED",
+    "questions": [],
+    "blast_radius_files": merged_blast_files,
+    "technical_specs": (
+        f"0-Token Fast-Lane Discovery Bypass ({'in-progress branch resume' if already_worked_on else 'pre-specced ticket / Track L child sub-issue'}).\n"
+        f"Pre-fetched Graph Nodes:\n{graph_nodes_digest or 'N/A'}"
+    ),
+    "acceptance_scenarios": ["Verify ticket acceptance criteria and regression tests pass."],
+    "required_testids": [],
+    "sub_issue_proposals": [],
+}
+
+if skip_product and skip_discovery:
+    log(
+        f"[Fast-Lane] Skipping both product-agent and discovery-agent (0 cloud tokens). "
+        f"already_worked_on={already_worked_on}, pre_specced_files={len(merged_blast_files)}"
+    )
+    product_res = fast_lane_product_res
+    discovery_res = fast_lane_discovery_res
+elif skip_product and not skip_discovery:
+    log("[Fast-Lane] Skipping product-agent spawn (0 tokens); running discovery-agent only.")
+    product_res = fast_lane_product_res
     discovery_res = await run_agent_with_fallback(agent, log, discovery_task)
+elif not skip_product and skip_discovery:
+    log("[Fast-Lane] Skipping discovery-agent spawn (0 tokens); running product-agent only.")
+    product_res = await run_agent_with_fallback(agent, log, product_task)
+    discovery_res = fast_lane_discovery_res
 else:
-    product_task = {
-        "role": "Product Strategist",
-        "type_name": "product-agent",
-        "model": "pro" if pricing else "flash",
-        "prompt": product_prompt,
-        "schema": product_schema,
-    }
     product_res, discovery_res = await parallel(
         [product_task, discovery_task],
         lambda t: run_agent_with_fallback(agent, log, t),
@@ -128,10 +207,16 @@ blocked = product_res["verdict"] != "APPROVED" or discovery_res["verdict"] != "A
 output = {
     "ticket_id": ticket_id,
     "track": track,
+    "already_worked_on": already_worked_on,
+    "skipped_product": skip_product,
+    "skipped_discovery": skip_discovery,
     "discovery_model_tier": discovery_tier,
     "overall_verdict": "NEEDS-INFO" if blocked else "APPROVED",
     "product": product_res,
     "discovery": discovery_res,
 }
-log(f"Parallel Discovery finished: {output['overall_verdict']} (discovery_tier={discovery_tier})")
+log(
+    f"Parallel Discovery finished: {output['overall_verdict']} "
+    f"(discovery_tier={discovery_tier}, skip_product={skip_product}, skip_discovery={skip_discovery})"
+)
 print(json.dumps(output, indent=2))

@@ -16,6 +16,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { builtinModules, createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
 
 const MAX_FAILURE_LINES = 35;
 
@@ -156,6 +159,72 @@ function printApiMap() {
   process.stdout.write(`[quiet-cli] api-map (${routes.length} routes):\n${routes.join('\n')}\n`);
 }
 
+function checkDeclaredDependencies() {
+  const pkgPath = path.resolve(process.cwd(), 'package.json');
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  if (!fs.existsSync(pkgPath)) return true;
+
+  let ts;
+  try {
+    ts = require('typescript');
+  } catch {
+    return true;
+  }
+
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+  const declared = new Set([...Object.keys(pkg.dependencies || {}), ...Object.keys(pkg.devDependencies || {})]);
+  const builtins = new Set(builtinModules.flatMap((m) => [m, `node:${m}`]));
+
+  const files = [];
+  function walk(dir) {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === 'node_modules' || entry.name.startsWith('.next') || entry.name === '.git') continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.(ts|tsx|mts)$/.test(entry.name)) files.push(full);
+    }
+  }
+
+  const srcRoot = path.resolve(process.cwd(), 'src');
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  if (fs.existsSync(srcRoot)) walk(srcRoot);
+  for (const topFile of ['playwright.config.ts', 'next.config.ts']) {
+    const full = path.resolve(process.cwd(), topFile);
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    if (fs.existsSync(full)) files.push(full);
+  }
+
+  const violations = [];
+  for (const file of files) {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    const txt = fs.readFileSync(file, 'utf8');
+    const info = ts.preProcessFile(txt, true, true);
+    for (const imp of info.importedFiles) {
+      const spec = imp.fileName;
+      if (!spec || spec.startsWith('.') || spec.startsWith('/') || spec.startsWith('@/')) continue;
+      const pkgName = spec.startsWith('@') ? spec.split('/').slice(0, 2).join('/') : spec.split('/')[0];
+      if (!builtins.has(pkgName) && !builtins.has(spec) && !declared.has(pkgName)) {
+        const line = txt.slice(0, imp.pos).split('\n').length;
+        const rel = path.relative(process.cwd(), file).replace(/\\/g, '/');
+        violations.push(`${rel}:${line} -> undeclared package "${pkgName}" (from "${spec}")`);
+      }
+    }
+  }
+
+  if (violations.length > 0) {
+    process.stderr.write(
+      `[quiet-cli] deps: FAIL (${violations.length} undeclared import(s) missing from package.json):\n` +
+        `${violations.slice(0, MAX_FAILURE_LINES).join('\n')}\n`
+    );
+    return false;
+  }
+
+  process.stdout.write('[quiet-cli] deps: PASS\n');
+  return true;
+}
+
 function main() {
   const [mode = 'pr-check', ...rest] = process.argv.slice(2);
 
@@ -165,6 +234,8 @@ function main() {
   }
 
   if (mode === 'tsc') {
+    const okDeps = checkDeclaredDependencies();
+    if (!okDeps) process.exit(1);
     const ok = runStep('tsc', 'npx', ['tsc', '--noEmit', '--pretty', 'false', ...rest]);
     process.exit(ok ? 0 : 1);
   }
@@ -181,6 +252,8 @@ function main() {
   }
 
   if (mode === 'pr-check') {
+    const okDeps = checkDeclaredDependencies();
+    if (!okDeps) process.exit(1);
     const okTsc = runStep('tsc', 'npx', ['tsc', '--noEmit', '--pretty', 'false']);
     if (!okTsc) process.exit(1);
     const okLint = runStep('lint', 'npx', ['eslint', '--quiet', 'src']);

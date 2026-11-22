@@ -37,8 +37,8 @@ Subagents are natively auto-registered via the workspace plugin at `.agents/plug
 
 | Role | Agent File | Model Tier | Write Scope | Required Skills / MCP |
 | :--- | :--- | :--- | :--- | :--- |
-| Product | `product-agent.md` | `flash` (`pro` for pricing; 0-token skip on pure backend) | `ARTIFACT_DIR` only | `search_web` |
-| Discovery | `discovery-agent.md` | `flash` (Track M) / `pro` (Track L or auth/billing/schema/AI) | `ARTIFACT_DIR` only | `codebase-memory-mcp` (`search_graph`, `trace_path`, `query_graph`) |
+| Product | `product-agent.md` | `flash` (`pro` for pricing; 0-token skip on pure backend, bugfixes, refactors, in-progress branches, or pre-specced UX/tiers) | `ARTIFACT_DIR` only | `search_web` |
+| Discovery | `discovery-agent.md` | `flash` (Track M) / `pro` (Track L or auth/billing/schema/AI; 0-token skip on in-progress branches, Track L child sub-issues, or pre-specced triage issues) | `ARTIFACT_DIR` only | `codebase-memory-mcp` (`search_graph`, `trace_path`, `query_graph`) |
 | Dev | `dev-agent.md` | `inherit` (M) / `pro` (L) / `cavecrew-builder` (S) | `src/`, `prisma/`, `ARTIFACT_DIR` | `architect` (Track L only), `triage-lint` |
 | QA | `qa-agent.md` | `flash` (`pro` for complex auth/tier) | `src/__tests__/`, `.maestro/`, `docs/manual_tests/`, `ARTIFACT_DIR` | Playwright, `@axe-core/playwright`, Maestro |
 | Audit | `audit-agent.md` | 0-token Python + local Ollama `qwen2.5-coder:14b-custom` + 1 cloud auditor (`flash` Track M / `pro` high-risk or Track L) | `ARTIFACT_DIR` only (READ-ONLY on `src/`) | `local-ollama-bridge`, `modern-web-guidance`, `gemini-cli-security` (`analyze`) |
