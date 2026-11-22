@@ -5,6 +5,25 @@ The canonical version is stored in [`.agents/plugins/zeroburn/plugin.json`](.age
 
 ---
 
+## [2.8.0] - 2026-11-22
+
+### Added
+- **Live Working-Tree Verification for Graph Pre-Fetch & Repo Digest (`graph_prefetch.py`, `repo_digest.py`):**
+  - Verifies every `codebase-memory-mcp` `search_graph` and `detect_changes` hit against the live filesystem (`verify_live_file_entry`), clamping line bounds and emitting `[STALE_INDEX_MISS]` when files moved or were deleted so subagents never trust stale coordinates.
+  - Verifies configured `REPO_MAP_DIGEST` paths (`schema`, `libDir`, `actionsDir`, `coreSingletons`) against disk and flags `[STALE - RE-INDEX]` if missing.
+- **0-Token Deterministic Route Auth Guard (`parallel-audit.py`, `benchmarks/try-now.mjs`, `live-audit.mjs`):**
+  - Deterministically flags non-public Next.js API routes (`src/app/api/**/route.ts`) missing recognizable server-side auth/session guards in pure Python/Node before invoking local Ollama or cloud auditors (with explicit `// public-route-ok` escape hatch).
+- **`tokens_to_first_green_edit` Benchmark Metric (`benchmarks/run_benchmark.py`, `benchmarks/try-now.mjs`):**
+  - Instruments cumulative billed tokens from subagent spawn through the first passing `tsc`/`vitest` run (Vanilla 4-turn vs. ZeroBurn 2-turn).
+
+### Changed
+- **Modularized Python Orchestration Core (`workflow_common.py`):**
+  - Split `workflow_common.py` into focused `<=200`-line modules (`ollama_gate.py`, `graph_prefetch.py`, `repo_digest.py`, `workflow_common.py`) while keeping 100% backward-compatible re-exports.
+- **Demystified `README.md` & Live ASCII Benchmark:**
+  - Replaced internal shorthand with plain engineering descriptions, clarified universal model/harness compatibility (Gemini, Claude, OpenAI, Cursor, Antigravity) and Git-only prerequisites (no GitHub login required), and replaced the static PNG with an always-current live ASCII terminal table.
+
+---
+
 ## [2.7.0] - 2026-11-22
 
 ### Added

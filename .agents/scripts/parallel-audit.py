@@ -172,6 +172,7 @@ def run_deterministic_static_audit(base: str, bp_path: str = ""):
             continue
         with open(fpath, "r", encoding="utf-8", errors="ignore") as fh:
             lines = fh.readlines()
+        content = "".join(lines)
         if len(lines) > MAX_LINES_PER_FILE:
             findings.append({
                 "auditor": "Static Zero-Token Guard",
@@ -179,6 +180,27 @@ def run_deterministic_static_audit(base: str, bp_path: str = ""):
                 "severity": "medium",
                 "reason": f"File has {len(lines)} lines (exceeds {MAX_LINES_PER_FILE}-line modularity guideline).",
             })
+        is_api_route = fpath.startswith("src/app/api/") and os.path.basename(fpath) in ("route.ts", "route.js")
+        is_public_route = any(
+            seg in fpath for seg in ("/health/", "/webhooks/", "/auth/", "/public/", "/og/")
+        )
+        if is_api_route and not is_public_route:
+            has_auth_guard = bool(
+                re.search(
+                    r"\b(auth|getSession|getServerSession|getCurrentUser|requireAuth|withAuth|getUserTier|verifySession|createClient)\s*\(",
+                    content,
+                )
+            )
+            if not has_auth_guard and "public-route-ok" not in content:
+                findings.append({
+                    "auditor": "Static Zero-Token Guard (Route Auth)",
+                    "file_line": f"{fpath}:1",
+                    "severity": "high",
+                    "reason": (
+                        f"API route `{fpath}` has no recognizable server-side auth/session guard "
+                        "(add auth check or explicit `// public-route-ok` comment if intentionally public)."
+                    ),
+                })
         for idx, line in enumerate(lines):
             if ("'use server'" in line or '"use server"' in line) and idx > 0:
                 findings.append({
