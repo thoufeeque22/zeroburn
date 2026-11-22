@@ -26,12 +26,12 @@ git clone https://github.com/thoufeeque22/zeroburn /tmp/zb && cp -R /tmp/zb/.age
 <summary><b>View raw ASCII tabular output from a 1,465-file repository</b></summary>
 
 ```text
-🔥 ZeroBurn v2.5.0 — Live Token-Savings Benchmark & 0-Token Diff Auditor
+🔥 ZeroBurn v2.6.0 — Live Token-Savings Benchmark & 0-Token Diff Auditor
 📂 Repository: /Users/dev/my-app (branch: feat/billing-quota)
 
 📊 1. Context & Cloud Token Footprint (Standard Subagent vs ZeroBurn)
 ┌────────────────────────────┬────────────────────────────┬─────────────────────────────┬────────────────┐
-│ Pipeline Stage             │ Vanilla Agent              │ ZeroBurn v2.5.0             │ Cloud Saved    │
+│ Pipeline Stage             │ Vanilla Agent              │ ZeroBurn v2.6.0             │ Cloud Saved    │
 ├────────────────────────────┼────────────────────────────┼─────────────────────────────┼────────────────┤
 │ 1. Repo & Route Discovery  │ 15,429 tok (1465 files)    │ 512 tok (5-line digest)     │ -96.7%         │
 │ 2. Rule & Docs Ingestion   │ 59,202 tok (4348 lines)    │ 195 tok (7-line digest)     │ -99.7%         │
@@ -65,7 +65,7 @@ Most multi-agent setups ("PM / Architect / Dev / QA prompt packs") drain your 5-
 
 Measured on a real feature/audit loop (*"Locate and audit `checkUploadQuota` tier logic, run all 6 billing unit test suites (70 tests), and execute a diff security audit"*). Full raw traces and reproducible runner in [`benchmarks/REAL_WORLD_BENCHMARK.md`](benchmarks/REAL_WORLD_BENCHMARK.md):
 
-| Stage | Standard Coding Agent (Vanilla) | `zeroburn` v2.5.0 Engine | Measured Savings |
+| Stage | Standard Coding Agent (Vanilla) | `zeroburn` v2.6.0 Engine | Measured Savings |
 | :--- | :--- | :--- | :--- |
 | **1. Repo & Route Discovery** | `find src -type f` (`1,470` lines / **15,454 tokens**) | `build_repo_map_digest()` (`6` lines / **636 tokens**: 28 Prisma models, 32 domains, 60 API routes) | **-95.9% tokens** |
 | **2. Governance & Rule Loading** | `cat .agents/AGENTS.md .agents/base/*.md` (`276` lines / **10,274 tokens**) | Pre-computed inlined rule digests (`7` lines / **195 tokens**) | **-98.1% tokens** |
@@ -86,7 +86,7 @@ $ [Spawns Cloud Pro Subagent for Diff Review]       #              (12,000 token
 ----------------------------------------------------------------------------------
 💥 Result: 46,465+ tokens & ~185,000 cumulative billed tokens across a 5-turn loop.
 
-✅ WITH ZEROBURN v2.5.0 (848 tokens — 98.2% reduction):
+✅ WITH ZEROBURN v2.6.0 (848 tokens — 98.2% reduction):
 $ [codebase-memory-mcp] search_graph("billing tier quota check")   #     0 tokens
   -> FreemiumGuard.checkUploadQuota (src/lib/billing/freemium-guard.ts:43-83)
 $ [Inlined REPO_MAP_DIGEST + Rule Digests]                         #   831 tokens
@@ -126,6 +126,8 @@ $ [parallel-audit.py] Python AST + Local Ollama qwen2.5-coder      #     0 cloud
 
 ```text
 CHANGELOG.md                        # Version history & upgrade notes
+docs/
+└── TIPS_AND_TRICKS.md              # Operational token-saving & prompt shortcut guide
 benchmarks/
 ├── REAL_WORLD_BENCHMARK.md         # Verified A/B benchmark on 10,893-node production repo
 ├── try-now.mjs                     # Zero-install live token benchmark & local Ollama diff auditor
@@ -153,7 +155,7 @@ benchmarks/
 │   └── quiet-cli.mjs               # 1-line tsc/lint/vitest wrapper + Judgment Kernel + api-map
 └── plugins/
     └── zeroburn/
-        ├── plugin.json             # Single source of truth for ZeroBurn version (v2.5.0)
+        ├── plugin.json             # Single source of truth for ZeroBurn version (v2.6.0)
         └── agents/                 # 8 specialized subagent definitions
 ```
 
@@ -172,6 +174,16 @@ What `init.mjs` does automatically:
 2. **Dynamic Local Model Resolution (`"auto"`):** Queries local Ollama (`/api/tags`) and uses any coder/prose models you **already have installed** with zero config edits.
 3. **Hardware-Aware Auto-Pull (`--pull`):** Only if no suitable local model is installed yet, detects your machine's RAM (`<24GB` -> `7b`, `>=24GB` -> `14b`) and pulls the right model automatically (pass `--pin` to lock exact tags).
 4. **Zero-Noise Verification:** Run `node .agents/scripts/quiet-cli.mjs pr-check` for 1-line agent verification receipts.
+
+---
+
+## Tips, Tricks & Token Optimization Guide
+
+For everyday efficiency tips, prompt shortcuts, and session hygiene best practices, read the [**ZeroBurn Tips & Tricks Guide**](docs/TIPS_AND_TRICKS.md):
+- **1-Line Minimalist Startups:** Why typing `start orchestration workflow on #1043` is faster and cheaper than pasting 2,000-token manual handover notes.
+- **Master Epic Branches:** Eliminating cascading rebase conflicts on multi-slice features.
+- **Session Lifecycles:** 1 chat per ticket, 0-token AST checks, and optimal timing for `/compact`.
+- **Knowledge Graph vs Grep:** Using MCP graph queries instead of reading full 500-line source files.
 
 ---
 

@@ -57,7 +57,7 @@ function loadPluginVersion(cwd) {
       }
     }
   }
-  return '2.5.0';
+  return '2.6.0';
 }
 
 function detectHardwareDefaults() {

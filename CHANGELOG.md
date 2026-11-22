@@ -5,6 +5,18 @@ The canonical version is stored in [`.agents/plugins/zeroburn/plugin.json`](.age
 
 ---
 
+## [2.6.0] - 2026-11-22
+
+### Added
+- **ZeroBurn Tips, Tricks & Token Optimization Playbook (`docs/TIPS_AND_TRICKS.md`):**
+  - Canonical operational playbook covering 1-line minimalist prompt startups (`start orchestration workflow on #1043`), deterministic epic branch auto-discovery without redundant topology prompts, session hygiene (1 ticket per chat, when to use `/compact`), Master Epic Branches, and 0-token test/audit mechanisms.
+- **Continuous Knowledge Loop Protocol (`ORCHESTRATION.md`):**
+  - Formalizes the continuous learning rule requiring agents and developers to preserve newly discovered workflow optimizations and prompt shortcuts directly into `docs/TIPS_AND_TRICKS.md`.
+- **Root README Tips & Tricks Showcase (`README.md`):**
+  - Adds a dedicated operational guide section linking developers directly to `docs/TIPS_AND_TRICKS.md`.
+
+---
+
 ## [2.5.0] - 2026-11-22
 
 ### Added
