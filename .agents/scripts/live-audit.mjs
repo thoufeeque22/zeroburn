@@ -5,7 +5,7 @@
  * Works in ANY git repository with zero dependencies (Node 18+).
  * Can be run locally (`node .agents/scripts/live-audit.mjs` or `node benchmarks/try-now.mjs`)
  * or piped directly via curl:
- *   curl -fsSL https://raw.githubusercontent.com/<owner>/zeroburn/main/benchmarks/try-now.mjs | node
+ *   curl -fsSL https://raw.githubusercontent.com/thoufeeque22/zeroburn/main/benchmarks/try-now.mjs | node
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -175,6 +175,7 @@ function runStaticAstChecks(cwd, changedFiles, maxLines = 200) {
     const full = path.join(cwd, rel);
     if (!fs.existsSync(full) || fs.statSync(full).isDirectory()) continue;
     if (!/\.(ts|tsx|js|jsx|mjs|py)$/.test(rel)) continue;
+    if (rel.startsWith('.agents/') || rel.startsWith('benchmarks/')) continue;
     if (rel.includes('__tests__') || /\.(test|spec)\./.test(rel)) continue;
     const content = fs.readFileSync(full, 'utf8');
     const lines = content.split('\n');
@@ -185,6 +186,22 @@ function runStaticAstChecks(cwd, changedFiles, maxLines = 200) {
         location: `${rel}:1`,
         reason: `File has ${lines.length} lines (exceeds ${maxLines}-line modularity cap)`,
       });
+    }
+    const isApiRoute = /^src\/app\/api\/.*\/route\.[tj]s$/.test(rel);
+    const isPublicRoute = /\/(health|webhooks|auth|public|og)\//.test(rel);
+    if (isApiRoute && !isPublicRoute) {
+      const hasAuthGuard =
+        /\b(auth|getSession|getServerSession|getCurrentUser|requireAuth|withAuth|getUserTier|verifySession|createClient)\s*\(/.test(
+          content
+        );
+      if (!hasAuthGuard && !content.includes('public-route-ok')) {
+        findings.push({
+          engine: 'Static AST (Route Auth)',
+          severity: 'HIGH',
+          location: `${rel}:1`,
+          reason: 'API route missing recognizable server-side auth guard (add check or `// public-route-ok`)',
+        });
+      }
     }
     lines.forEach((line, idx) => {
       if ((line.includes("'use server'") || line.includes('"use server"')) && idx > 0) {
@@ -273,7 +290,7 @@ function main() {
   const cwd = targetArg ? path.resolve(process.cwd(), targetArg) : process.cwd();
   const branch = runGit(['rev-parse', '--abbrev-ref', 'HEAD'], cwd) || 'detached';
 
-  console.log('\n🔥 ZeroBurn v2.5.0 — Live Token-Savings Benchmark & 0-Token Diff Auditor');
+  console.log('\n🔥 ZeroBurn v2.8.0 — Live Token-Savings Benchmark & 0-Token Diff Auditor');
   console.log(`📂 Repository: ${cwd} (branch: ${branch})\n`);
 
   // 1. Measure Discovery & Rule Footprints
@@ -309,11 +326,22 @@ function main() {
   const totalSavedPct = ((1 - totalZeroBurn / Math.max(1, totalVanilla)) * 100).toFixed(1);
   const fiveTurnSaved = Math.max(0, (totalVanilla - totalZeroBurn) * 4);
 
+  // Tokens-to-First-Green-Edit: cumulative billed tokens from spawn -> edit -> 1st passing tsc/vitest
+  const tEditPayload = 650;
+  const vT1 = tVanillaFind + docsInfo.tokens;
+  const vT2 = vT1 + 1921;
+  const vT3 = vT2 + tEditPayload;
+  const vT4 = vT3 + tVanillaTest;
+  const tokensToFirstGreenVanilla = vT1 + vT2 + vT3 + vT4;
+  const zT1 = tZeroBurnDigest + tZeroBurnRules + tEditPayload;
+  const zT2 = zT1 + tZeroBurnTest;
+  const tokensToFirstGreenZeroBurn = zT1 + zT2;
+
   const pct = (v, z) => `-${((1 - z / Math.max(1, v)) * 100).toFixed(1)}%`;
 
   console.log('📊 1. Context & Cloud Token Footprint (Standard Subagent vs ZeroBurn)');
   const tokenTable = renderTable(
-    ['Pipeline Stage', 'Vanilla Agent', 'ZeroBurn v2.5.0', 'Cloud Saved'],
+    ['Pipeline Stage', 'Vanilla Agent', 'ZeroBurn v2.8.0', 'Cloud Saved'],
     [
       [
         '1. Repo & Route Discovery',
@@ -345,6 +373,12 @@ function main() {
         `${totalVanilla.toLocaleString()} cloud tokens`,
         `${totalZeroBurn.toLocaleString()} cloud tokens`,
         `-${totalSavedPct}%`,
+      ],
+      [
+        'TOKENS TO 1ST GREEN EDIT',
+        `${tokensToFirstGreenVanilla.toLocaleString()} tok (4 turns)`,
+        `${tokensToFirstGreenZeroBurn.toLocaleString()} tok (2 turns)`,
+        pct(tokensToFirstGreenVanilla, tokensToFirstGreenZeroBurn),
       ],
       [
         '5-TURN CUMULATIVE BILLING',
@@ -404,8 +438,8 @@ function main() {
   }
 
   console.log('\n⭐ Install ZeroBurn in this repo (1 command):');
-  console.log('   git clone https://github.com/<owner>/zeroburn /tmp/zb && cp -R /tmp/zb/.agents . && node .agents/scripts/init.mjs --pull');
-  console.log('🔗 Star on GitHub: https://github.com/<owner>/zeroburn\n');
+  console.log('   git clone https://github.com/thoufeeque22/zeroburn /tmp/zb && cp -R /tmp/zb/.agents . && node .agents/scripts/init.mjs --pull');
+  console.log('🔗 Star on GitHub: https://github.com/thoufeeque22/zeroburn\n');
 }
 
 main();

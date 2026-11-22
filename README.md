@@ -1,10 +1,14 @@
 # ZeroBurn (`zeroburn`)
 
-> **Cut AI coding-agent token & quota burn by 70–83%** with 0-token static & blast-radius checks, dynamic local Ollama diff review + Judgment Kernel failure digests, code-graph pre-fetching, parallel swarm file leases, and 1-line test receipts — without sacrificing Contract-First TDD or strict quality gates.
+> **Cut AI coding-agent cloud API token & quota burn by 70–83%** by eliminating test/discovery output bloat, querying live-verified local code graphs, running deterministic AST/auth/scope checks, and offloading mechanical failure analysis and diff reviews to local Ollama models — without sacrificing Contract-First TDD or strict quality gates.
+>
+> *Works across any coding agent harness and frontier model family (Google Gemini, Anthropic Claude, OpenAI, Cursor, Antigravity).*
 >
 > *Engineered by the team building **[directly.social](https://directly.social)** (`@directlysocial`).*
 
 ## ⚡ Quick Start (10 Seconds)
+
+> **Prerequisites:** Any Git repository (GitHub, GitLab, Bitbucket, or local Git), Node.js 18+, and (optional) local Ollama. No GitHub account or `gh` login required.
 
 **1. Live 0-Install Benchmark & AST Diff Auditor (Try it in any repo):**
 ```bash
@@ -21,20 +25,24 @@ git clone --depth 1 https://github.com/thoufeeque22/zeroburn /tmp/zb && cp -R /t
 node .agents/scripts/init.mjs --upgrade
 ```
 
+**4. Trigger in Chat (GitHub Issue or Plain Local Task):**
+```text
+# With a GitHub issue:
+start orchestration workflow on #1043
+
+# Or without GitHub / plain local task:
+implement tier-based upload quota limits in src/lib/billing
+```
+
 > **Note:** Upgrades preserve your existing project settings (`projectName`, `stackSummary`, `graphProjectId`, and local models) inside `.agents/project.config.json` while updating the engine, rules, and subagents. When a new release is available, your agent's session banner will automatically alert you.
 
-![ZeroBurn Live Benchmark & 0-Token Diff Auditor](benchmarks/zeroburn-benchmark.png)
-
-<details>
-<summary><b>View raw ASCII tabular output from a 1,465-file repository</b></summary>
-
 ```text
-🔥 ZeroBurn v2.7.0 — Live Token-Savings Benchmark & 0-Token Diff Auditor
+🔥 ZeroBurn v2.8.0 — Live Token-Savings Benchmark & 0-Token Diff Auditor
 📂 Repository: /Users/dev/my-app (branch: feat/billing-quota)
 
 📊 1. Context & Cloud Token Footprint (Standard Subagent vs ZeroBurn)
 ┌────────────────────────────┬────────────────────────────┬─────────────────────────────┬────────────────┐
-│ Pipeline Stage             │ Vanilla Agent              │ ZeroBurn v2.7.0             │ Cloud Saved    │
+│ Pipeline Stage             │ Vanilla Agent              │ ZeroBurn v2.8.0             │ Cloud Saved    │
 ├────────────────────────────┼────────────────────────────┼─────────────────────────────┼────────────────┤
 │ 1. Repo & Route Discovery  │ 15,429 tok (1465 files)    │ 512 tok (5-line digest)     │ -96.7%         │
 │ 2. Rule & Docs Ingestion   │ 59,202 tok (4348 lines)    │ 195 tok (7-line digest)     │ -99.7%         │
@@ -42,6 +50,7 @@ node .agents/scripts/init.mjs --upgrade
 │ 4. Diff Security Audit     │ 3,500 tok (Cloud Pro)      │ 0 tok (Local Ollama + AST)  │ -100.0%        │
 ├────────────────────────────┼────────────────────────────┼─────────────────────────────┼────────────────┤
 │ TOTAL (Single Agent Loop)  │ 84,947 cloud tokens        │ 724 cloud tokens            │ -99.1%         │
+│ TOKENS TO 1ST GREEN EDIT   │ 312,078 tok (4 turns)      │ 2,731 tok (2 turns)         │ -99.1%         │
 │ 5-TURN CUMULATIVE BILLING  │ ~339,788 billed tokens     │ ~2,896 billed tokens        │ 336,892 saved  │
 └────────────────────────────┴────────────────────────────┴─────────────────────────────┴────────────────┘
 
@@ -49,11 +58,10 @@ node .agents/scripts/init.mjs --upgrade
 ┌────────────────────────────┬──────────┬──────────────┬─────────────────────────────────────────────────┐
 │ Audit Engine               │ Time     │ Cloud Cost   │ Verdict                                         │
 ├────────────────────────────┼──────────┼──────────────┼─────────────────────────────────────────────────┤
-│ Static AST & Modularity    │ 0.01s    │ 0 cloud tok  │ ✅ PASS (<=200L, 0 `any`, line-1 actions)        │
+│ Static AST & Route Auth    │ 0.01s    │ 0 cloud tok  │ ✅ PASS (<=200L, 0 `any`, route auth guards)     │
 │ Ollama (qwen2.5-coder:14b) │ 8.92s    │ 0 cloud tok  │ ✅ PASS — Clean diff verified                    │
 └────────────────────────────┴──────────┴──────────────┴─────────────────────────────────────────────────┘
 ```
-</details>
 
 ---
 
@@ -103,27 +111,33 @@ $ [parallel-audit.py] Python AST + Local Ollama qwen2.5-coder      #     0 cloud
 
 ---
 
-## How It Works (Zero-Waste Harness Mechanisms)
+## How It Works (Under the Hood)
 
-1. **Single Declarative Config & Dynamic Local Model Resolution (`.agents/project.config.json`):** Set `"localCoderModel": "auto"` and `"localProseModel": "auto"` to automatically detect and use whichever coder (`qwen*-coder`, `deepseek-coder`, `codellama`, `starcoder`) and prose (`gemma*`, `llama*`, `mistral*`, `phi*`) models are installed in local Ollama — or pin specific tags per repo.
-2. **Auto-Start & Fail-Closed Local Ollama Gate (`session-start.mjs` & `workflow_common.py`):**
-   - Automatically starts `ollama serve` in the background if `127.0.0.1:11434` is down, dynamically resolves installed models from `/api/tags`, and hard-stops workflows only if no local model is reachable.
-3. **0-Token Knowledge Graph Pre-Fetch (`codebase-memory-mcp`):**
-   - Pre-fetches top symbol coordinates (`file:start-end`) before Discovery and 2-hop impacted call-graph nodes (`detect_changes`) before Audit in **0 LLM tokens**.
-4. **Inlined Rule Digests & Dynamic `REPO_MAP_DIGEST`:**
-   - Pre-computes Prisma models, `src/lib/*` domains, Server Actions, and `/api/**` endpoints in `<5ms` Python and inlines compressed rule digests so subagents never waste turns calling `read_file` on markdown docs.
-5. **Pool-Safe `FALLBACK_CHAINS` & `<= 4` Handoff Cap:**
-   - Steps down through cheaper 5-hour tiers (`pro -> flash -> flash_lite -> inherit`) before touching `inherit`, protecting weekly reserve model pools while keeping Track M pipelines under the 4-handoff cliff.
-6. **Quiet CLI Verification + Local Ollama Judgment Kernel (`node .agents/scripts/quiet-cli.mjs <tsc|lint|unit|pr-check|api-map>`):**
-   - Emits 1-line receipts (`[quiet-cli] unit: PASS`) on green runs, summarizes >12-line failures via local Ollama in 0 cloud tokens, and introspects `/api/**` routes via `api-map`.
-7. **Deterministic Blast-Radius Drift Guard & Parallel Swarm File Leases:**
-   - `parallel-audit.py` deterministically verifies `git diff --name-only` against the Discovery blueprint in 0 tokens, and `workflow_common.py` + `pre-tool-guard.mjs` enforce exclusive file-path leases (`.agents/swarm_leases.json`) across parallel swarm workers.
-8. **Track L Master Epic Branches & Docs-Only Zero-Test Fast-Path:**
-   - Multi-slice epics branch into and PR against dedicated `epic/<epic-id>-<slug>` master feature branches to eliminate deep PR stacking. Commits touching only documentation or markdown rules bypass full test suites (`pnpm test`, E2E) to save compute.
-9. **Cloud-Vetted Observation Intake & Hybrid Batch Triage (`parallel-audit.py` + `project-agent`):**
-   - `parallel-audit.py` feeds static + local Ollama findings into the cloud auditor to corroborate real debt and filter noise, persisting only vetted actionable `medium`/`low` items with `source_ticket` tracking. `doc-agent` and `session-start.mjs` trigger `project-agent` for domain-grouped batch issue triage at `observationsTriageThreshold` (default `5`) or Track L Epic closure.
-10. **Stage 0/1 Smart Bypass & Work-Resume Gate (`parallel-discovery.py` + `ORCHESTRATION.md`):**
-   - Automatically detects branches that already have commits/WIP (`already_worked_on`), Track L child sub-issues, and pre-specced observation-triage tickets (`skip_discovery=True`, `skip_product=True`), bypassing redundant `product-agent` and `discovery-agent` spawns in **0 cloud tokens** and resuming directly at `Dev`, `QA`, or `Audit`.
+Instead of relying on proprietary agent runtimes or buzzwords, ZeroBurn is a set of transparent scripts, hooks, and local model helpers that eliminate cloud context waste:
+
+1. **Test Stdout Truncation & Local Failure Diagnosis (`quiet-cli.mjs`):**
+   - **Passing runs:** Vitest, ESLint, and TypeScript emit a 1-line receipt (`PASS`) instead of dumping 500 lines of ASCII progress bars into chat history.
+   - **Failing runs:** On >12-line failures, local Ollama (`gemma4` / `qwen2.5-coder`) outputs a concise 3-line diagnosis (exact `file:line`, root cause, suggested fix) directly *above* the last 35 lines of the raw stack trace so critical diagnostics are never dropped.
+
+2. **Pre-Execution AST Code Graph with Live Tree Verification (`codebase-memory-mcp`):**
+   - Queries a local SQLite/AST symbol index *before* constructing subagent prompts—avoiding both exploratory `find`/`grep` loops and the ~9k-token per-turn MCP tool-schema tax (schemas stay lazy-loaded).
+   - Every graph-indexed path and line range is verified against the live filesystem on read (`_verify_live_file_entry`), converting moved or deleted files into explicit `[STALE_INDEX_MISS]` signals so agents never trust stale coordinates.
+
+3. **Two-Tier Hybrid Security & Quality Audit (`parallel-audit.py`):**
+   - **Tier 1 (0-Token Deterministic Rules + Local Ollama Pre-Filter):** Deterministic properties run in pure Python first (missing server-side auth guards on non-public `/api/**/route.ts` handlers, line-count modularity, `'use server'` line-1 placement, explicit `any`, and blueprint scope drift). Local Ollama then scans the diff for fuzzy logic/error-handling issues.
+   - **Tier 2 (Cloud Auditor Final Decision):** Local findings are passed into a single cloud frontier auditor (`pro` or `flash`), which filters out local false positives and serves as the authoritative gate for blocking `Critical` and `High` issues.
+
+4. **Dynamic Live `REPO_MAP_DIGEST` & Inlined Rule Digests (`workflow_common.py`):**
+   - Walks `src/app/api/**`, `src/lib/*`, and `prisma/schema.prisma` live on disk in `<5ms` right before spawning a subagent, inlining a 6-line structural map + compressed rule digests so subagents never waste turns listing directories or reading markdown docs.
+
+5. **Advisory File Locks for Parallel Workers (`swarm_leases.json`):**
+   - Simple JSON lockfile enforced by `pre-tool-guard.mjs` before file edits, preventing concurrent subagents in parallel swarms from editing the same file simultaneously.
+
+6. **Stage 0/1 Smart Bypass & Work-Resume Gate (`parallel-discovery.py` + `ORCHESTRATION.md`):**
+   - Automatically detects branches that already have commits/WIP (`already_worked_on`), Track L child sub-issues, and pre-specced observation-triage tickets, bypassing redundant `product-agent` and `discovery-agent` spawns in **0 cloud tokens** and resuming directly at `Dev`, `QA`, or `Audit`.
+
+7. **Multi-Slice Epic Feature Branches & Docs-Only Zero-Test Fast-Path:**
+   - Multi-slice epics branch into and PR against dedicated `epic/<epic-id>-<slug>` master feature branches to eliminate cascading rebase conflicts. Commits touching only documentation or markdown rules bypass full test suites to save compute.
 
 ---
 
