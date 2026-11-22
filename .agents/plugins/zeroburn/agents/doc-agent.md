@@ -15,7 +15,8 @@ Stage 5 (`Documentation & Pre-PR Closure`). Write scope: `docs/`, `README.md`, `
 2. **Docs & AI Knowledge Parity:** Update `docs/` and `README.md` to match implementation; confirm `docs/` parity; verify `ARTIFACT_DIR/visual_testing_evidence.md` is signed off.
 3. **PR Impact Summary:** Format the **Impacted Areas & Blast Radius** markdown table for the PR body.
 4. **Incidental Observations Check (Threshold + Epic-Closure Trigger):**
-   - Read `OBSERVATIONS_FILE` (`.agents/incidental_observations.json`) and prune any entries resolved inside the current PR (e.g., docs updated during Stage 5).
+   - Run `node .agents/scripts/triage-observations.mjs prune` to automatically discard observations already resolved by this PR or tracked in existing issues.
+   - Read `OBSERVATIONS_FILE` (`.agents/incidental_observations.json`).
    - Skip `project-agent` on **Track S** and **intermediate Track L slices** (zero per-slice tax).
    - Flag `project-agent` (`flash`) before PR creation when **ANY** of these triggers hold:
      1. **Track M closure** and `OBSERVATIONS_FILE` has `>= 5` entries (`observationsTriageThreshold` in `.agents/project.config.json`),
