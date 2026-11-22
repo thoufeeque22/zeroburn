@@ -48,7 +48,7 @@ The user grants standing authorization for the Orchestrator to enforce the **Hyb
 ## 2. Stage 0: Initialization, Worktree Option & Track Triage
 
 Follow `Issue -> Branch/Worktree -> Triage -> Artifact`:
-1. **Resolve Ticket ID:** Parse request or query GitHub (`gh issue view <num>`). Never invent an ID. If no issue exists, invoke `project-agent` (`Model="flash"`) first.
+1. **Resolve Ticket ID or Task Slug:** Parse request for issue number/URL or plain task description. If an issue number/URL is provided and `gh` is authenticated, query GitHub (`gh issue view <num>`). If no GitHub issue exists or `gh` is not logged in, derive a concise local task slug (e.g. `feat/upload-quota` or `fix/auth-callback`) and track the plan in `ARTIFACT_DIR/plan.md`. Never require GitHub login for local work.
 2. **Pre-Flight Branch Guard & Epic Branch Strategy (Zero-Stranded Branch Policy):**
    - **Track S / Track M:**
      - Run `git rev-list --count HEAD ^origin/main`. If ahead, check `gh pr list --head $(git branch --show-current) --state all --json state,number`:
