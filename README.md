@@ -125,6 +125,16 @@ $ [parallel-audit.py] Python AST + Local Ollama qwen2.5-coder      #     0 cloud
 
 ---
 
+## Tips, Tricks & Token Optimization Guide
+
+For everyday efficiency tips, prompt shortcuts, and session hygiene best practices, read the [**ZeroBurn Tips & Tricks Guide**](docs/TIPS_AND_TRICKS.md):
+- **1-Line Minimalist Startups:** Why typing `start orchestration workflow on #1043` is faster and cheaper than pasting 2,000-token manual handover notes.
+- **Master Epic Branches:** Eliminating cascading rebase conflicts on multi-slice features.
+- **Session Lifecycles:** 1 chat per ticket, 0-token AST checks, and optimal timing for `/compact`.
+- **Knowledge Graph vs Grep:** Using MCP graph queries instead of reading full 500-line source files.
+
+---
+
 ## Repository Layout
 
 ```text
@@ -161,16 +171,6 @@ benchmarks/
         ├── plugin.json             # Single source of truth for ZeroBurn version (v2.6.0)
         └── agents/                 # 8 specialized subagent definitions
 ```
-
----
-
-## Tips, Tricks & Token Optimization Guide
-
-For everyday efficiency tips, prompt shortcuts, and session hygiene best practices, read the [**ZeroBurn Tips & Tricks Guide**](docs/TIPS_AND_TRICKS.md):
-- **1-Line Minimalist Startups:** Why typing `start orchestration workflow on #1043` is faster and cheaper than pasting 2,000-token manual handover notes.
-- **Master Epic Branches:** Eliminating cascading rebase conflicts on multi-slice features.
-- **Session Lifecycles:** 1 chat per ticket, 0-token AST checks, and optimal timing for `/compact`.
-- **Knowledge Graph vs Grep:** Using MCP graph queries instead of reading full 500-line source files.
 
 ---
 
