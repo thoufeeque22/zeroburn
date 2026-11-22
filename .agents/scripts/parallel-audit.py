@@ -53,8 +53,17 @@ def is_blocking_finding(item: dict) -> bool:
     return str(item.get("severity", "")).strip().lower() in BLOCKING_SEVERITIES
 
 
-def append_deferred_observations(findings: list, obs_path: str = OBSERVATIONS_FILE) -> tuple:
-    """Append medium/low findings (deduplicated by file_line + reason) to OBSERVATIONS_FILE."""
+def _normalize_obs_key(file_val: str, reason_val: str) -> tuple:
+    return (
+        re.sub(r"\s+", " ", file_val).strip().lower(),
+        re.sub(r"\s+", " ", reason_val).strip().lower(),
+    )
+
+
+def append_deferred_observations(
+    findings: list, obs_path: str = OBSERVATIONS_FILE, source_ticket: str = ""
+) -> tuple:
+    """Append medium/low findings (deduplicated by normalized file_line + reason) to OBSERVATIONS_FILE."""
     deferred = [
         item
         for item in findings
@@ -76,11 +85,13 @@ def append_deferred_observations(findings: list, obs_path: str = OBSERVATIONS_FI
     seen = set()
     for entry in existing:
         if isinstance(entry, dict):
-            key_file = str(entry.get("file") or entry.get("file_line") or "").strip()
-            key_reason = str(entry.get("observation") or entry.get("reason") or "").strip()
-            if key_file or key_reason:
-                seen.add((key_file, key_reason))
+            key_file = str(entry.get("file") or entry.get("file_line") or "")
+            key_reason = str(entry.get("observation") or entry.get("reason") or "")
+            norm_key = _normalize_obs_key(key_file, key_reason)
+            if norm_key[0] or norm_key[1]:
+                seen.add(norm_key)
 
+    resolved_ticket = str(source_ticket or globals().get("ticket_id", "unknown"))
     appended = 0
     now_ts = int(time.time())
     for item in deferred:
@@ -89,13 +100,14 @@ def append_deferred_observations(findings: list, obs_path: str = OBSERVATIONS_FI
         sev = str(item.get("severity", "medium")).strip().lower()
         if sev not in DEFERRED_SEVERITIES:
             sev = "medium"
-        dedup_key = (file_line, reason)
-        if dedup_key in seen or (not file_line and not reason):
+        dedup_key = _normalize_obs_key(file_line, reason)
+        if dedup_key in seen or (not dedup_key[0] and not dedup_key[1]):
             continue
         seen.add(dedup_key)
         digest = hashlib.sha1(f"{file_line}|{reason}".encode("utf-8")).hexdigest()[:8]
         existing.append({
             "id": f"OBS-{now_ts}-{digest}",
+            "source_ticket": resolved_ticket,
             "discovery_agent": str(item.get("auditor", "audit-agent")),
             "observation": reason,
             "file": file_line,
@@ -339,8 +351,11 @@ async def _run_audit_workflow():
 
     severity_policy = (
         "SEVERITY POLICY: Only `critical` and `high` security or data-integrity vulnerabilities may fail the audit (`verdict: 'FAIL'`). "
-        "Report `medium` or `low` findings (modularity >200 lines, minor blast-radius drift, style/lint nits) with `severity: 'medium' | 'low'` — "
-        "they are automatically logged to `.agents/incidental_observations.json` and deferred, and MUST NOT fail `verdict` or block PR closure.\n"
+        "Review and deduplicate the pre-computed static + local Ollama findings below: include ONLY corroborated, actionable "
+        "`medium` or `low` out-of-scope tech debt or bugs worth tracking in a backlog issue, and drop false positives/duplicates. "
+        "Exclude informational PR metrics (e.g., file count vs. blueprint estimate), items already tracked in an existing sub-issue, "
+        "and items queued for Stage 5 of the current PR. Only cloud-auditor-vetted findings are persisted to "
+        "`.agents/incidental_observations.json`, and `medium`/`low` items MUST NOT fail `verdict` or block PR closure.\n"
     )
 
     phase(f"Stage 2: Consolidated Cloud Audit ({cloud_tier}, Round {audit_round}/2)")
@@ -360,7 +375,7 @@ async def _run_audit_workflow():
             f"{severity_policy}"
             f"Changed files ({len(changed_files)}): {', '.join(changed_files[:25])}\n"
             f"[PRE-FETCHED 2-HOP CALL-GRAPH IMPACT (0-TOKEN LOOKUP)]:\n{graph_impact_digest or 'No non-agent symbols impacted.'}\n"
-            f"Pre-computed static + local Ollama findings: {json.dumps(static_findings + local_findings)}\n"
+            f"Pre-computed static + local Ollama findings (vet, corroborate, or discard noise): {json.dumps(static_findings + local_findings)}\n"
             f"Verify:\n"
             f"1. Security & Production: 7-Point AI Security, server-side getUserTier gating, "
             f"ProcessedWebhook P2002, rate-limit-registry.ts, RLS/GDPR cascades, zero SSR secrets leaks.\n"
@@ -373,12 +388,16 @@ async def _run_audit_workflow():
 
     cloud_res = await run_agent_with_fallback(agent, log, consolidated_auditor)
 
-    all_findings = list(static_findings) + list(local_findings)
-    for item in cloud_res.get("findings", []):
-        all_findings.append({"auditor": consolidated_auditor["role"], **item})
+    cloud_findings = [
+        {"auditor": consolidated_auditor["role"], **item}
+        for item in cloud_res.get("findings", [])
+    ]
+    all_findings = list(static_findings) + list(local_findings) + cloud_findings
 
     blocking_findings = [item for item in all_findings if is_blocking_finding(item)]
-    deferred_count, appended_count = append_deferred_observations(all_findings)
+    deferred_count, appended_count = append_deferred_observations(
+        cloud_findings, source_ticket=str(ticket_id)
+    )
     overall_pass = len(blocking_findings) == 0
     tests_required = bool(cloud_res.get("tests_required", False)) and not overall_pass
 

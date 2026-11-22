@@ -5,6 +5,18 @@ The canonical version is stored in [`.agents/plugins/zeroburn/plugin.json`](.age
 
 ---
 
+## [2.5.0] - 2026-11-22
+
+### Added
+- **Cloud-Audited Observation Intake (`parallel-audit.py`, `audit-agent.md`):**
+  - Persists ONLY cloud-auditor-vetted actionable `medium`/`low` out-of-scope tech debt to `.agents/incidental_observations.json`, attaching `source_ticket` metadata and normalized `(file, reason)` deduplication while dropping raw local Ollama duplicates and informational PR metrics.
+- **Hybrid Count-Threshold & Epic-Closure Batch Triage (`ORCHESTRATION.md`, `AGENTS.md`, `doc-agent.md`, `project-agent.md`):**
+  - Replaces the dead `high`-only closure trigger with a threshold (`observationsTriageThreshold: 5` in `project.config.json`) on Track M closure and `>= 1` entry on Track L Epic final closure (`epic/<id>-*` -> `main`), routing to `project-agent` for domain-grouped batch issue creation (skipping Track S and intermediate slices).
+- **SessionStart `TRIAGE_DUE` Indicator (`session-start.mjs`):**
+  - Flags `pending_observations=<count> [TRIAGE_DUE>=5]` in the SessionStart context banner whenever deferred observations reach the configured threshold.
+
+---
+
 ## [2.4.0] - 2026-11-21
 
 ### Added
