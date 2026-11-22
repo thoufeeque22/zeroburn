@@ -132,3 +132,39 @@ Always prefer Codebase Knowledge Graph MCP tools (`codebase-memory-mcp`) over fu
 1. `search_graph(query="...")`: Finds exact symbol coordinates in 1 turn.
 2. `get_code_snippet(qualified_name="...")`: Reads only the target function/class instead of 500 lines of file context.
 3. `trace_path(function_name="...", direction="inbound")`: Maps callers across the entire codebase with zero exploratory turns.
+
+---
+
+## 8. Stage 1 Smart Bypass & Work-Resume Gate (Skipping Product & Discovery)
+
+Spawning `product-agent` and `discovery-agent` on every single ticket wastes cloud quota and adds 30–60s of latency when a ticket is already partially built or fully specified in GitHub. ZeroBurn enforces a deterministic **Stage 0/1 Smart Bypass Gate**:
+
+1. **Already-In-Progress Branches ("Already Worked Upon" -> 0-Token Resume):**
+   - If `feature/<id>-*` already has commits ahead of `<base>` (`main` or `epic/<epic-id>-*`), active working-tree diffs, or an existing `discovery_blueprint.md`, Stage 1 is bypassed completely (`already_worked_on=True`).
+   - The orchestrator resumes directly at **Stage 2 (`Development`)**, **Stage 3 (`QA Verification`)**, or **Stage 4 (`Hybrid Audit`)** depending on what is already completed on the branch.
+2. **Pre-Specced Tickets (`skip_discovery=True` -> 0 Cloud Tokens):**
+   - **Track L Child Sub-Issues:** Already decomposed during the parent Epic's Discovery with an explicit file blast radius and vertical slice contract.
+   - **Observation-Triage & Detailed Bug Tickets:** Issues generated from `.agents/incidental_observations.json` or detailed bug reports that already name the target `file:line` and fix contract.
+   - The orchestrator synthesizes `discovery_blueprint.md` directly from the issue body + a 0-token `codebase-memory-mcp` `search_graph` pre-fetch without spawning `discovery-agent`.
+3. **Selective `product-agent` Trigger (`skip_product=True` by default on non-UX-strategy work):**
+   - `product-agent` is skipped in 0 tokens not only for `pure_backend=True`, but also for bug fixes, component refactors, performance/a11y fixes, Track L child sub-issues, and tickets whose UX copy and tier entitlements are already specified.
+   - `product-agent` runs **only** when introducing net-new user-facing UX flows, ambiguous customer copy, or new tier/pricing rules.
+
+---
+
+## 9. Upgrades & Version Synchronization (1-Command In-Place Upgrade)
+
+ZeroBurn provides automated upstream update detection and a 1-command upgrade workflow:
+
+1. **Automatic In-Session Alert:**
+   - Every time a session starts, `session-start.mjs` checks upstream GitHub releases in the background (cached for 24 hours).
+   - If a newer release is found, the session context banner displays:
+     ```text
+     Workspace context: zeroburn=v2.6.0 [UPDATE_AVAILABLE: v2.7.0 -> run `node .agents/scripts/init.mjs --upgrade`], ...
+     ```
+2. **1-Command Upgrade:**
+   - Run:
+     ```bash
+     node .agents/scripts/init.mjs --upgrade
+     ```
+   - This downloads the latest release tag from GitHub, updates the orchestration engine, rules, and subagents in `.agents/`, and migrates `.agents/project.config.json` while preserving all custom project names, paths, and local model configs.

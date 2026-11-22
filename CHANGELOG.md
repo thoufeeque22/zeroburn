@@ -5,6 +5,20 @@ The canonical version is stored in [`.agents/plugins/zeroburn/plugin.json`](.age
 
 ---
 
+## [2.7.0] - 2026-11-22
+
+### Added
+- **1-Command In-Place Upgrade (`node .agents/scripts/init.mjs --upgrade`):**
+  - Allows existing users and projects to update ZeroBurn directly from GitHub with 1 command, cleanly replacing `.agents/` while preserving all custom project settings and paths in `.agents/project.config.json`.
+- **Automatic In-Session Upgrade Indicator (`session-start.mjs`):**
+  - SessionStart hook checks upstream GitHub releases in the background (with a 24-hour local cache) and flags `[UPDATE_AVAILABLE: vX.Y.Z -> run node .agents/scripts/init.mjs --upgrade]` directly in the agent's startup context banner.
+- **Stage 0/1 Smart Bypass & Work-Resume Gate (`ORCHESTRATION.md`, `AGENTS.md`, `parallel-discovery.py`, `docs/TIPS_AND_TRICKS.md`):**
+  - **Already-In-Progress Branch Auto-Resume (`already_worked_on`):** `parallel-discovery.py` and Stage 0 inspect `git diff --name-only <base>...HEAD` and working-tree changes; if a ticket branch already has commits or active implementation WIP, Stage 1 (`Product || Discovery`) is bypassed in **0 cloud tokens** and execution resumes directly at Stage 2 (`Dev`), Stage 3 (`QA`), or Stage 4 (`Audit`).
+  - **Pre-Specced Ticket Discovery Bypass (`skip_discovery=True`):** Skips `discovery-agent` in 0 cloud tokens for Track L child sub-issues (already decomposed by parent Epic Discovery), observation-triage tickets, and detailed bug reports that already declare their target file blast radius and contract, synthesizing `discovery_blueprint.md` directly from the issue body + 0-token `codebase-memory-mcp` `search_graph` pre-fetch.
+  - **Selective `product-agent` Trigger (`skip_product=True`):** Extends the 0-token `product-agent` bypass beyond `pure_backend=True` to also skip bug fixes, refactors, performance/a11y fixes, Track L child sub-issues, and pre-specced UI tickets, spawning `product-agent` strictly for net-new UX flows, ambiguous customer copy, or new tier/pricing decisions.
+
+---
+
 ## [2.6.0] - 2026-11-22
 
 ### Added

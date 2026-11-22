@@ -19,7 +19,7 @@ function loadPluginVersion(cwd) {
       }
     }
   }
-  return '2.6.0';
+  return '2.7.0';
 }
 
 function loadProjectConfig(cwd) {
@@ -54,6 +54,56 @@ function fetchOllamaModels(ollamaUrl) {
     return Array.isArray(parsed.models)
       ? parsed.models.map((m) => m.name).filter(Boolean)
       : [];
+  } catch {
+    return null;
+  }
+}
+
+function checkUpstreamVersion(cwd, currentVersion) {
+  try {
+    const cacheFile = path.join(os.tmpdir(), 'zeroburn_latest_tag.json');
+    let cached = null;
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    if (fs.existsSync(cacheFile)) {
+      try {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        cached = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+      } catch {
+        cached = null;
+      }
+    }
+    const now = Date.now();
+    // Cache for 24 hours (86,400,000 ms) so we never spam GitHub API
+    if (!cached || !cached.tag || now - (cached.checkedAt || 0) > 86400000) {
+      try {
+        // eslint-disable-next-line sonarjs/no-os-command-from-path
+        const out = execFileSync(
+          'curl',
+          ['-sf', '--max-time', '1.5', 'https://api.github.com/repos/<owner>/zeroburn/releases/latest'],
+          { encoding: 'utf8', timeout: 2000 }
+        );
+        const parsed = JSON.parse(out);
+        if (parsed.tag_name) {
+          cached = { tag: parsed.tag_name.replace(/^v/, ''), checkedAt: now };
+          // eslint-disable-next-line security/detect-non-literal-fs-filename
+          fs.writeFileSync(cacheFile, JSON.stringify(cached), 'utf8');
+        }
+      } catch {
+        // network or rate-limit: ignore silently
+      }
+    }
+    if (cached && cached.tag && cached.tag !== currentVersion) {
+      // compare simple semver
+      const curParts = currentVersion.split('.').map(Number);
+      const upstreamParts = cached.tag.split('.').map(Number);
+      for (let i = 0; i < 3; i++) {
+        const u = upstreamParts[i] || 0;
+        const c = curParts[i] || 0;
+        if (u > c) return cached.tag;
+        if (u < c) break;
+      }
+    }
+    return null;
   } catch {
     return null;
   }
@@ -165,10 +215,12 @@ function main() {
     const version = loadPluginVersion(cwd);
     const cfgVersion = cfg.zeroburnVersion || version;
     const driftNote = cfgVersion !== version ? ` [config=${cfgVersion}->run init.mjs]` : '';
+    const upstreamTag = checkUpstreamVersion(cwd, version);
+    const updateBanner = upstreamTag ? ` [UPDATE_AVAILABLE: v${upstreamTag} -> run \`node .agents/scripts/init.mjs --upgrade\`]` : '';
     const zeroburnSync = hasOrchChanges(cwd)
       ? 'PENDING (export & push ../zeroburn via `node .agents/scripts/export-public-orchestrator.mjs ../zeroburn`)'
       : 'CLEAN';
-    const msg = `Workspace context: zeroburn=v${version}${driftNote}, branch=${branch}, dirty_files=${dirtyCount}, pending_observations=${obsCount}${obsFlag}, local_ollama=${ollama.status} (coder=${ollama.coder}, prose=${ollama.prose}), graph_project=${graphProject}, zeroburn_sync=${zeroburnSync}. Efficiency rules: (1) Query codebase-memory-mcp directly with project="${graphProject}" (skip list_projects & full-file reads), (2) Batch independent tool calls in parallel turns, (3) Use \`node .agents/scripts/quiet-cli.mjs <tsc|lint|unit|pr-check|api-map>\` for 1-line verification logs, (4) Follow Hybrid Quota Policy (Options A+B+C) in .agents/base/ORCHESTRATION.md.`;
+    const msg = `Workspace context: zeroburn=v${version}${driftNote}${updateBanner}, branch=${branch}, dirty_files=${dirtyCount}, pending_observations=${obsCount}${obsFlag}, local_ollama=${ollama.status} (coder=${ollama.coder}, prose=${ollama.prose}), graph_project=${graphProject}, zeroburn_sync=${zeroburnSync}. Efficiency rules: (1) Query codebase-memory-mcp directly with project="${graphProject}" (skip list_projects & full-file reads), (2) Batch independent tool calls in parallel turns, (3) Use \`node .agents/scripts/quiet-cli.mjs <tsc|lint|unit|pr-check|api-map>\` for 1-line verification logs, (4) Follow Hybrid Quota Policy (Options A+B+C) in .agents/base/ORCHESTRATION.md.`;
     process.stdout.write(JSON.stringify({ injectSteps: [{ systemMessage: { systemMessage: msg } }] }));
   } catch {
     process.stdout.write('{}');

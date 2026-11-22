@@ -57,7 +57,7 @@ function loadPluginVersion(cwd) {
       }
     }
   }
-  return '2.6.0';
+  return '2.7.0';
 }
 
 function detectHardwareDefaults() {
@@ -191,6 +191,41 @@ function main() {
   if (args.has('--version') || args.has('-v')) {
     process.stdout.write(`zeroburn v${pluginVersion}\n`);
     return;
+  }
+
+  if (args.has('--upgrade')) {
+    process.stdout.write(`[zeroburn upgrade] Fetching latest ZeroBurn release from GitHub...\n`);
+    try {
+      // eslint-disable-next-line sonarjs/no-os-command-from-path
+      const releaseJson = execFileSync(
+        'curl',
+        ['-sf', '--max-time', '5', 'https://api.github.com/repos/<owner>/zeroburn/releases/latest'],
+        { encoding: 'utf8', timeout: 6000 }
+      );
+      const parsed = JSON.parse(releaseJson);
+      const latestTag = parsed.tag_name || 'main';
+      process.stdout.write(`[zeroburn upgrade] Found latest release: ${latestTag}. Downloading...\n`);
+      const tmpDir = path.join(os.tmpdir(), `zb-upgrade-${Date.now()}`);
+      // eslint-disable-next-line sonarjs/no-os-command-from-path
+      execFileSync('git', ['clone', '--depth', '1', '--branch', latestTag, 'https://github.com/<owner>/zeroburn', tmpDir], {
+        stdio: 'inherit',
+        timeout: 20000,
+      });
+      const agentsSrc = path.join(tmpDir, '.agents');
+      const agentsDest = path.join(cwd, '.agents');
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      if (fs.existsSync(agentsSrc)) {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        fs.cpSync(agentsSrc, agentsDest, { recursive: true });
+        process.stdout.write(`[zeroburn upgrade] Updated .agents/ to ${latestTag} successfully.\n`);
+      }
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } catch (err) {
+      process.stderr.write(`[zeroburn upgrade] Failed to download upgrade: ${err.message}\n`);
+      process.stderr.write(`Fallback manual command:\n  git clone --depth 1 https://github.com/<owner>/zeroburn /tmp/zb && cp -R /tmp/zb/.agents . && rm -rf /tmp/zb && node .agents/scripts/init.mjs\n`);
+      return;
+    }
   }
 
   const shouldPull = args.has('--pull');
