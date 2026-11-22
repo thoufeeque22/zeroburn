@@ -4,16 +4,26 @@
 >
 > *Engineered by the team building **[directly.social](https://directly.social)** (`@directlysocial`).*
 
-### 🚀 Try It Right Now in Your Own Repo (Zero Install, 10 Seconds)
+## ⚡ Quick Start & Live Demo (10 Seconds)
 
+**Option A — Try it live in your own repo right now (Zero Install):**
 Paste this 1-liner inside **any Git repository** on your machine to see your exact discovery token savings and run a real-time **0-cloud-token Static AST + Local Ollama Diff Audit** on your current `git diff`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/thoufeeque22/zeroburn/main/benchmarks/try-now.mjs | node
 ```
 
+**Option B — Install ZeroBurn into your project (1 Command):**
+Clones `.agents/`, auto-detects your stack (`Next.js`, `TypeScript`, `Prisma`), dynamically resolves your installed local Ollama models (`"auto"`), and configures 1-line `quiet-cli` verification:
+
+```bash
+git clone https://github.com/thoufeeque22/zeroburn /tmp/zb && cp -R /tmp/zb/.agents . && rm -rf /tmp/zb && node .agents/scripts/init.mjs --pull
+```
+
+![ZeroBurn Live Benchmark & 0-Token Diff Auditor](benchmarks/zeroburn-benchmark.png)
+
 <details>
-<summary><b>View sample live tabular output from a 1,465-file repository</b></summary>
+<summary><b>View raw ASCII tabular output from a 1,465-file repository</b></summary>
 
 ```text
 🔥 ZeroBurn v2.5.0 — Live Token-Savings Benchmark & 0-Token Diff Auditor
