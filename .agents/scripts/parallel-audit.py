@@ -47,6 +47,20 @@ APP_DIFF_PATHSPECS = [
     ":(exclude)**/*.spec.tsx",
     ":(exclude)**/*.test.tsx",
 ]
+USER_FACING_OR_ARCH_PREFIXES = (
+    "src/app/(app)/",
+    "src/app/marketing/",
+    "src/app/actions/",
+    "src/lib/billing/",
+    "src/lib/ratelimit/",
+    "src/lib/platforms/",
+    "src/lib/upload/",
+    "src/lib/video/",
+    "src/lib/inngest/",
+    "src/lib/billing/tiers.ts",
+    "src/lib/core/tier.ts",
+    "prisma/schema.prisma",
+)
 
 
 def is_blocking_finding(item: dict) -> bool:
@@ -216,6 +230,30 @@ def run_deterministic_static_audit(base: str, bp_path: str = ""):
                     "severity": "high",
                     "reason": "Explicit `any` detected; use strict TypeScript types.",
                 })
+
+    non_test_user_or_arch = [
+        f
+        for f in changed_files
+        if f.startswith(USER_FACING_OR_ARCH_PREFIXES)
+        and "__tests__" not in f
+        and not f.endswith((".test.ts", ".spec.ts", ".test.tsx", ".spec.tsx"))
+    ]
+    has_docs_update = any(f.startswith("docs/") or f == "README.md" for f in changed_files)
+    has_knowledge_update = any(f.startswith("src/lib/ai/docs-knowledge/") for f in changed_files)
+    docs_na = "DOCS_PARITY: N/A" in blueprint_text or "APP_KNOWLEDGE_PARITY: N/A" in blueprint_text
+
+    if non_test_user_or_arch and not has_docs_update and not has_knowledge_update and not docs_na:
+        sample = ", ".join(non_test_user_or_arch[:3])
+        findings.append({
+            "auditor": "Static Zero-Token Guard (Docs & Knowledge Parity)",
+            "file_line": f"{non_test_user_or_arch[0]}:1",
+            "severity": "medium",
+            "reason": (
+                f"User-facing/architectural files changed ({sample}) with zero updates to `docs/**`, `README.md`, "
+                f"or `docs/`. Update docs & in-app knowledge parity before PR closure (or declare `DOCS_PARITY: N/A` in blueprint)."
+            ),
+        })
+
     return changed_files, findings
 
 

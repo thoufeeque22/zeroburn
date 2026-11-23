@@ -33,7 +33,7 @@ Stage 4 (`Audit`). **READ-ONLY on `src/`.** Offload large diff/log scans to `oll
    - Zero emojis in UI, MUI icons only, no theme token string concat, no nested `GlassCard`, Dark Mode badge visibility, outcome-first button labels.
    - **Customer UI Copy Policy (`UI_UX.md`):** Verify `<brand-terms>` use `<TermTooltip>` + canonical `/docs/<guide>` links on first exposure/dense UI; human-readable tier names (`Free`, `Developer`, `Pro`, `Team`, `Enterprise`) via `formatTierName()` (no raw `FREE_DEV` DB enums in customer UI); zero engineering jargon (`OAuth`, `SSRF`, `RBAC`, `Zod`, `RSC`, `403`/`500`, raw Prisma/DB errors, internal config keys) in customer alerts/toasts/banners/errors/pricing (provider setup forms keep exact labels + plain-English helper text + doc link). *(Severity rule: raw DB/config/secret leaks = `high`; missing tooltip/jargon/enum copy nits = `medium` deferred to `.agents/incidental_observations.json`.)*
    - Confirm browser `.spec.ts` ran with Reload + Dual-Theme `checkA11y` + `375px` overflow AND `ARTIFACT_DIR/visual_testing_evidence.md` is complete.
-   - Confirm `docs/` + `docs-parity.test.ts` updated if user-facing capabilities changed.
+   - Confirm `docs/` and `docs/` + `docs-parity.test.ts` are updated whenever user-facing capabilities, routes, schemas, or system architecture changed (corroborating any 0-token `parallel-audit.py` Docs & Knowledge Parity finding unless `DOCS_PARITY: N/A` is justified in blueprint).
 5. **Performance Audit:** Run `modern-web-guidance` Web Vitals check (LCP, INP, CLS).
 6. **Artifact Update:** `write_file` -> `ARTIFACT_DIR/audit_report.md` (if `FAIL`, include Gap Analysis + `TESTS_REQUIRED: YES/NO`; `RequestFeedback: true` on `FAIL`, else `false`).
 
