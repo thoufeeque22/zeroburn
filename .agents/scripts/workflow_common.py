@@ -26,14 +26,17 @@ from repo_digest import (  # noqa: E402
 
 
 def _load_plugin_version() -> str:
-    candidate = ".agents/plugins/zeroburn/plugin.json"
-    if os.path.isfile(candidate):
-        try:
-            with open(candidate, "r", encoding="utf-8") as fh:
-                return str(json.load(fh).get("version") or "2.8.0")
-        except Exception:
-            pass
-    return "2.8.0"
+    for candidate in (
+        ".agents/plugins/zeroburn/plugin.json",
+        ".agents/plugins/zeroburn/plugin.json",
+    ):
+        if os.path.isfile(candidate):
+            try:
+                with open(candidate, "r", encoding="utf-8") as fh:
+                    return str(json.load(fh).get("version") or "2.9.0")
+            except Exception:
+                pass
+    return "2.9.0"
 
 
 def _load_project_config() -> dict:

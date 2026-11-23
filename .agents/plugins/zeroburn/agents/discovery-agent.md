@@ -14,7 +14,7 @@ Stage 1B (`Discovery`, runs alongside `product-agent`). Read-only on `src/`. Sta
 1. **Socratic Interrogation:** Assess Feasibility, Strategic Alignment, Architectural Integrity, Priority, 3rd-Party Cost, and Tier Limits. If anything is unclear, stop with `VERDICT: NEEDS-INFO` and ask questions. Never guess.
 2. **Codebase Mapping:** Trace callers/dependents via `codebase-memory-mcp` (`search_graph`, `trace_path`, `query_graph`). Suggest `pnpm run notebook:package` for complex integrations or legacy refactors.
 3. **5-Dimension Blast Radius & Mandatory Checks:**
-   - **Files & Call Chains:** Direct edits + upstream/downstream consumers.
+   - **Files & Call Chains:** Direct edits + upstream/downstream consumers + explicit target `docs/**` and `src/lib/ai/docs-knowledge/**` files (or declare `DOCS_PARITY: N/A` / `APP_KNOWLEDGE_PARITY: N/A` if purely internal).
    - **DB & DevTools:** `schema.prisma`, migrations/push, Supabase RLS, `/dev-tools` archetypes, and **mandatory `@@index([userId])` + compound/scheduler indexes** on new/modified models. When touching Supabase, SQL, migrations, or RLS, invoke `supabase` and `supabase-postgres-best-practices` skills.
    - **Security, CSP & Compliance:** External domains for `next.config.ts` CSP, `/api/*` entries in `rate-limit-registry.ts`, `ProcessedWebhook` idempotency, Cookie Policy / Terms impact, GDPR export/deletion cascade.
    - **UX & Tier Matrix:** Navigation, settings fallback for skippable onboarding, full 5-tier matrix (`FREE`, `PRO`, `TEAM`, `ENTERPRISE`), specifying human-readable UI tier names (`Free`, `Developer`, `Pro`, `Team`, `Enterprise`), `<TermTooltip>` + canonical `/docs/dev/*` links for `<brand-terms>`, and zero engineering jargon in customer copy (`UI_UX.md`).

@@ -5,7 +5,7 @@
  * Works in ANY git repository with zero dependencies (Node 18+).
  * Can be run locally (`node .agents/scripts/live-audit.mjs` or `node benchmarks/try-now.mjs`)
  * or piped directly via curl:
- *   curl -fsSL https://raw.githubusercontent.com/thoufeeque22/zeroburn/main/benchmarks/try-now.mjs | node
+ *   curl -fsSL https://raw.githubusercontent.com/<owner>/zeroburn/main/benchmarks/try-now.mjs | node
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -285,12 +285,30 @@ function renderTable(headers, rows, widths) {
   return out.join('\n');
 }
 
+function loadPluginVersion(cwd) {
+  for (const rel of ['.agents/plugins/zeroburn/plugin.json', '.agents/plugins/zeroburn/plugin.json']) {
+    const p = path.join(cwd, rel);
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    if (fs.existsSync(p)) {
+      try {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        const parsed = JSON.parse(fs.readFileSync(p, 'utf8'));
+        if (parsed.version) return parsed.version;
+      } catch {
+        // fallback
+      }
+    }
+  }
+  return '2.9.0';
+}
+
 function main() {
   const targetArg = process.argv[2];
   const cwd = targetArg ? path.resolve(process.cwd(), targetArg) : process.cwd();
   const branch = runGit(['rev-parse', '--abbrev-ref', 'HEAD'], cwd) || 'detached';
+  const version = loadPluginVersion(cwd);
 
-  console.log('\n🔥 ZeroBurn v2.8.0 — Live Token-Savings Benchmark & 0-Token Diff Auditor');
+  console.log(`\n🔥 ZeroBurn v${version} — Live Token-Savings Benchmark & 0-Token Diff Auditor`);
   console.log(`📂 Repository: ${cwd} (branch: ${branch})\n`);
 
   // 1. Measure Discovery & Rule Footprints
@@ -341,7 +359,7 @@ function main() {
 
   console.log('📊 1. Context & Cloud Token Footprint (Standard Subagent vs ZeroBurn)');
   const tokenTable = renderTable(
-    ['Pipeline Stage', 'Vanilla Agent', 'ZeroBurn v2.8.0', 'Cloud Saved'],
+    ['Pipeline Stage', 'Vanilla Agent', `ZeroBurn v${version}`, 'Cloud Saved'],
     [
       [
         '1. Repo & Route Discovery',
@@ -438,8 +456,8 @@ function main() {
   }
 
   console.log('\n⭐ Install ZeroBurn in this repo (1 command):');
-  console.log('   git clone https://github.com/thoufeeque22/zeroburn /tmp/zb && cp -R /tmp/zb/.agents . && node .agents/scripts/init.mjs --pull');
-  console.log('🔗 Star on GitHub: https://github.com/thoufeeque22/zeroburn\n');
+  console.log('   git clone https://github.com/<owner>/zeroburn /tmp/zb && cp -R /tmp/zb/.agents . && node .agents/scripts/init.mjs --pull');
+  console.log('🔗 Star on GitHub: https://github.com/<owner>/zeroburn\n');
 }
 
 main();

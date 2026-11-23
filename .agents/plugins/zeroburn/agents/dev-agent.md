@@ -16,7 +16,7 @@ Stage 2 (`Development`). Standards: [CORE.md](.agents/base/CORE.md), [UI_UX.md](
 3. **Blocking Implementation Checklist:**
    - [ ] **Modularity (`wc -l`):** Every created/modified non-test file in `src/` is `≤ 200` lines (no `eslint-disable max-lines` on UI; justified comment only on non-UI).
    - [ ] **Tier Gating:** Server-side `getUserTier(userId)` + `TIER_QUOTA_MAP` checks + structured upsell error.
-   - [ ] **AI Knowledge Base:** `docs/` + `index.ts` updated & `docs-parity.test.ts` green (or `N/A`).
+   - [ ] **Docs & AI Knowledge Base Parity:** Impacted `docs/architecture/*.md` / `docs/features/*.md` AND `docs/` (`index.ts`, domain guides, `aliases.ts`, `docs-parity.test.ts`) updated for any user-facing, schema, or architectural change (or explicitly `N/A`).
    - [ ] **DB & Supabase Contracts:** `'use server';` on line 1 of Server Actions; `prisma.*.createMany` passes explicit `randomUUID()` IDs; `@@index([userId])` + query indexes present; `prisma generate` + `db push` run; follow `supabase` and `supabase-postgres-best-practices` skills.
    - [ ] **API / Webhook / CSP:** New `/api/*` in `rate-limit-registry.ts`; webhooks guarded by `ProcessedWebhook` (`P2002`); external domains in `next.config.ts` CSP; GDPR export/delete cascades updated.
    - [ ] **UI / Copy & Test IDs:** MUI (`sx` prop) + MUI Icons only, zero emojis, no `**bold**` in TSX, outcome-first microcopy, 8pt spacing, `finally` async reset, 3-part zero-leak errors, and all Blueprint `data-testid`s implemented.

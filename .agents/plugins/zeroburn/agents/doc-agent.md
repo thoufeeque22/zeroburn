@@ -12,7 +12,7 @@ Stage 5 (`Documentation & Pre-PR Closure`). Write scope: `docs/`, `README.md`, `
 
 # Mandatory Sequence (Execute in Order)
 1. **Explicit Correction Check (Zero Per-Ticket Hygiene Tax):** Do NOT run `orchestration-auditor` or scan full transcripts per ticket (handled by weekly `/schedule`). Only encode a new rule/learning if the user gave an explicit correction during this session.
-2. **Docs & AI Knowledge Parity:** Update `docs/` and `README.md` to match implementation; confirm `docs/` parity; verify `ARTIFACT_DIR/visual_testing_evidence.md` is signed off.
+2. **Docs & AI Knowledge Parity (BLOCKING):** Run `node .agents/scripts/quiet-cli.mjs docs-parity` and `pnpm run drift-report`. Update `docs/` (including `docs/ARCHITECTURE.md` / `docs/architecture/*.md` / `docs/features/*.md`) and `README.md` to match implementation; confirm `docs/` + `src/__tests__/unit/docs-knowledge.test.ts` parity for all user-facing changes; verify `ARTIFACT_DIR/visual_testing_evidence.md` is signed off.
 3. **PR Impact Summary:** Format the **Impacted Areas & Blast Radius** markdown table for the PR body.
 4. **Incidental Observations Check (Threshold + Epic-Closure Trigger):**
    - Run `node .agents/scripts/triage-observations.mjs prune` to automatically discard observations already resolved by this PR or tracked in existing issues.

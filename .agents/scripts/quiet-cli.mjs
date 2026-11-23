@@ -12,6 +12,7 @@
  *   node .agents/scripts/quiet-cli.mjs unit [test-files...]
  *   node .agents/scripts/quiet-cli.mjs pr-check
  *   node .agents/scripts/quiet-cli.mjs api-map
+ *   node .agents/scripts/quiet-cli.mjs docs-parity
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -221,7 +222,43 @@ function checkDeclaredDependencies() {
     return false;
   }
 
-  process.stdout.write('[quiet-cli] deps: PASS\n');
+  process.stdout.write(`[quiet-cli] deps: PASS\n`);
+  return true;
+}
+
+function checkDocsParity() {
+  // eslint-disable-next-line sonarjs/no-os-command-from-path
+  const baseCheck = spawnSync('git', ['rev-parse', '--verify', 'origin/main'], { encoding: 'utf8' });
+  const baseRef = baseCheck.status === 0 ? 'origin/main' : 'HEAD~1';
+  // eslint-disable-next-line sonarjs/no-os-command-from-path
+  const diffRes = spawnSync('git', ['diff', '--name-only', baseRef], { encoding: 'utf8' });
+  const changed = (diffRes.stdout || '')
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const userOrArchChanged = changed.filter(
+    (f) =>
+      (/^(src\/app\/|src\/lib\/billing\/|src\/lib\/ratelimit\/|src\/lib\/platforms\/|prisma\/schema\.prisma)/.test(f) &&
+        !f.includes('__tests__') &&
+        !f.startsWith('src/lib/ai/docs-knowledge/'))
+  );
+  const docsChanged = changed.filter((f) => f.startsWith('docs/') || f === 'README.md');
+  const knowledgeChanged = changed.filter((f) => f.startsWith('src/lib/ai/docs-knowledge/'));
+
+  if (userOrArchChanged.length === 0) {
+    process.stdout.write('[quiet-cli] docs-parity: PASS (no user-facing/schema changes)\n');
+    return true;
+  }
+  if (docsChanged.length === 0 && knowledgeChanged.length === 0) {
+    process.stdout.write(
+      `[quiet-cli] docs-parity: WARN (${userOrArchChanged.length} app/schema file(s) changed, 0 docs/ or src/lib/ai/docs-knowledge/ updates)\n`
+    );
+    return false;
+  }
+  process.stdout.write(
+    `[quiet-cli] docs-parity: PASS (app=${userOrArchChanged.length}, docs=${docsChanged.length}, knowledge=${knowledgeChanged.length})\n`
+  );
   return true;
 }
 
@@ -230,6 +267,11 @@ function main() {
 
   if (mode === 'api-map') {
     printApiMap();
+    process.exit(0);
+  }
+
+  if (mode === 'docs-parity') {
+    checkDocsParity();
     process.exit(0);
   }
 
@@ -252,6 +294,7 @@ function main() {
   }
 
   if (mode === 'pr-check') {
+    checkDocsParity();
     const okDeps = checkDeclaredDependencies();
     if (!okDeps) process.exit(1);
     const okTsc = runStep('tsc', 'npx', ['tsc', '--noEmit', '--pretty', 'false']);
@@ -262,7 +305,7 @@ function main() {
     process.exit(okUnit ? 0 : 1);
   }
 
-  process.stderr.write(`Unknown mode "${mode}". Use: tsc | lint | unit | pr-check | api-map\n`);
+  process.stderr.write(`Unknown mode "${mode}". Use: tsc | lint | unit | pr-check | api-map | docs-parity\n`);
   process.exit(1);
 }
 

@@ -5,6 +5,17 @@ The canonical version is stored in [`.agents/plugins/zeroburn/plugin.json`](.age
 
 ---
 
+## [2.9.0] - 2026-11-23
+
+### Added
+- **0-Token Docs & Knowledge Parity Guard (`parallel-audit.py`, `quiet-cli.mjs docs-parity`, `AGENTS.md`, `ORCHESTRATION.md`):**
+  - Enforces strict documentation and knowledge parity across **Track S, Track M, and Track L** whenever user-facing routes, actions, billing/quotas, platforms, or schema models change (closing Track S and 4-Handoff Cliff Cap bypasses).
+  - Adds `node .agents/scripts/quiet-cli.mjs docs-parity` (integrated into `pr-check`) and a deterministic 0-token Python static parity guard inside `parallel-audit.py`.
+- **Dynamic Version Banner (`live-audit.mjs`):**
+  - Replaces hardcoded version banners with dynamic `loadPluginVersion()` lookup across `.agents/plugins/*/plugin.json`.
+
+---
+
 ## [2.8.0] - 2026-11-22
 
 ### Added
