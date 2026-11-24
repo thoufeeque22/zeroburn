@@ -15,13 +15,15 @@
  *   node .agents/scripts/quiet-cli.mjs docs-parity
  */
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { builtinModules, createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 
 const MAX_FAILURE_LINES = 35;
+const MAX_RING_LINES = 200;
 
 function loadProjectConfig() {
   for (const rel of ['.agents/project.config.json', '.agents/project.config.example.json']) {
@@ -99,30 +101,155 @@ function summarizeFailureWithJudgmentKernel(label, errorLines) {
   }
 }
 
-function runStep(label, cmd, args) {
-  // eslint-disable-next-line sonarjs/no-os-command-from-path
-  const res = spawnSync(cmd, args, {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, FORCE_COLOR: '0', CI: 'true' },
-  });
-  const combined = stripAnsi(`${res.stdout || ''}\n${res.stderr || ''}`).trim();
+function createLogArtifactPath(label) {
+  const safeLabel = String(label || 'cmd').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const dir = process.env.ZEROBURN_QUIET_LOG_DIR || os.tmpdir();
+  return path.join(dir, `zeroburn-quiet-cli-${safeLabel}-${process.pid}-${Date.now()}.log`);
+}
 
-  if (res.status === 0) {
-    const summaryMatch = combined.match(/Test Files\s+\d+\s+passed.*|Tests\s+\d+\s+passed.*/g);
-    const extra = summaryMatch ? ` (${summaryMatch.join(', ').replace(/\s+/g, ' ')})` : '';
+function isNoiseLine(line) {
+  return !line || line.startsWith('RUN  v') || line.includes('transform ') || line.includes('[queued]');
+}
+
+async function runStep(label, cmd, args) {
+  const logPath = createLogArtifactPath(label);
+  const stdoutRing = [];
+  const stderrRing = [];
+  const summaryMatches = [];
+  let totalLines = 0;
+  let totalBytes = 0;
+  let stdoutCarry = '';
+  let stderrCarry = '';
+  let logStream = null;
+
+  try {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    logStream = fs.createWriteStream(logPath, { encoding: 'utf8' });
+  } catch {
+    logStream = null;
+  }
+
+  const pushLine = (ring, cleaned) => {
+    if (isNoiseLine(cleaned)) return;
+    totalLines += 1;
+    ring.push(cleaned);
+    if (ring.length > MAX_RING_LINES) ring.shift();
+    const m = cleaned.match(/Test Files\s+\d+\s+passed.*|Tests\s+\d+\s+passed.*/g);
+    if (m) summaryMatches.push(...m);
+  };
+
+  const makeIngest = (ring, getCarry, setCarry) => (chunk) => {
+    const raw = typeof chunk === 'string' ? chunk : chunk.toString('utf8');
+    totalBytes += Buffer.byteLength(raw, 'utf8');
+    if (logStream) logStream.write(raw);
+
+    const text = stripAnsi(getCarry() + raw);
+    const parts = text.split(/\r?\n/);
+    setCarry(parts.pop() || '');
+    for (const part of parts) pushLine(ring, part.trimEnd());
+  };
+
+  const ingestStdout = makeIngest(
+    stdoutRing,
+    () => stdoutCarry,
+    (v) => {
+      stdoutCarry = v;
+    }
+  );
+  const ingestStderr = makeIngest(
+    stderrRing,
+    () => stderrCarry,
+    (v) => {
+      stderrCarry = v;
+    }
+  );
+
+  const flushCarries = () => {
+    if (stdoutCarry) {
+      pushLine(stdoutRing, stripAnsi(stdoutCarry).trimEnd());
+      stdoutCarry = '';
+    }
+    if (stderrCarry) {
+      pushLine(stderrRing, stripAnsi(stderrCarry).trimEnd());
+      stderrCarry = '';
+    }
+  };
+
+  const closeLogStream = () =>
+    new Promise((resolve) => {
+      if (!logStream) return resolve();
+      logStream.end(() => resolve());
+    });
+
+  const outcome = await new Promise((resolve) => {
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+
+    let child;
+    try {
+      // eslint-disable-next-line sonarjs/no-os-command-from-path
+      child = spawn(cmd, args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, FORCE_COLOR: '0', CI: 'true' },
+      });
+    } catch (error) {
+      finish({ code: null, signal: null, error });
+      return;
+    }
+
+    child.stdout?.on('data', ingestStdout);
+    child.stderr?.on('data', ingestStderr);
+    child.on('error', (error) => finish({ code: null, signal: null, error }));
+    child.on('close', (code, signal) => finish({ code, signal, error: null }));
+  });
+
+  flushCarries();
+  await closeLogStream();
+
+  // Combine stdout tail + stderr tail so stderr diagnostics are never drowned out by buffered stdout
+  const combinedRing = [...stdoutRing, ...stderrRing];
+
+  if (outcome.error) {
+    const errCode = outcome.error.code || 'SPAWN_ERROR';
+    process.stderr.write(
+      `[quiet-cli] ${label}: ERROR (${errCode}) — failed to execute \`${cmd}\`: ${outcome.error.message}\n`
+    );
+    return false;
+  }
+
+  if (outcome.signal) {
+    const tail = combinedRing.slice(-MAX_FAILURE_LINES);
+    process.stderr.write(
+      `[quiet-cli] ${label}: KILLED (signal ${outcome.signal}) — captured ${totalLines} lines (${totalBytes} bytes); full log: ${logPath}\n` +
+        (tail.length > 0 ? `${tail.join('\n')}\n` : '')
+    );
+    return false;
+  }
+
+  if (outcome.code === 0) {
+    try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      if (fs.existsSync(logPath)) fs.unlinkSync(logPath);
+    } catch {
+      // best-effort cleanup on green runs
+    }
+    const extra =
+      summaryMatches.length > 0 ? ` (${summaryMatches.slice(-2).join(', ').replace(/\s+/g, ' ')})` : '';
     process.stdout.write(`[quiet-cli] ${label}: PASS${extra}\n`);
     return true;
   }
 
-  const lines = combined
-    .split('\n')
-    .map((l) => l.trimEnd())
-    .filter((l) => l && !l.startsWith('RUN  v') && !l.includes('transform ') && !l.includes('[queued]'));
-  const kernelDigest = summarizeFailureWithJudgmentKernel(label, lines);
-  const tail = lines.slice(-MAX_FAILURE_LINES);
+  const kernelDigest =
+    process.env.ZEROBURN_DISABLE_JUDGMENT_KERNEL === '1'
+      ? null
+      : summarizeFailureWithJudgmentKernel(label, combinedRing);
+  const tail = combinedRing.slice(-MAX_FAILURE_LINES);
   process.stderr.write(
-    `[quiet-cli] ${label}: FAIL (exit ${res.status ?? 1}) — showing ${tail.length}/${lines.length} lines:\n` +
+    `[quiet-cli] ${label}: FAIL (exit ${outcome.code ?? 1}) — showing ${tail.length}/${totalLines} lines (full log: ${logPath}):\n` +
       (kernelDigest ? `${kernelDigest}\n` : '') +
       `${tail.join('\n')}\n`
   );
@@ -262,7 +389,7 @@ function checkDocsParity() {
   return true;
 }
 
-function main() {
+async function main() {
   const [mode = 'pr-check', ...rest] = process.argv.slice(2);
 
   if (mode === 'api-map') {
@@ -275,21 +402,31 @@ function main() {
     process.exit(0);
   }
 
+  if (mode === 'exec') {
+    const [cmd, ...cmdArgs] = rest;
+    if (!cmd) {
+      process.stderr.write('Usage: node .agents/scripts/quiet-cli.mjs exec <cmd> [args...]\n');
+      process.exit(1);
+    }
+    const ok = await runStep(path.basename(cmd), cmd, cmdArgs);
+    process.exit(ok ? 0 : 1);
+  }
+
   if (mode === 'tsc') {
     const okDeps = checkDeclaredDependencies();
     if (!okDeps) process.exit(1);
-    const ok = runStep('tsc', 'npx', ['tsc', '--noEmit', '--pretty', 'false', ...rest]);
+    const ok = await runStep('tsc', 'npx', ['tsc', '--noEmit', '--pretty', 'false', ...rest]);
     process.exit(ok ? 0 : 1);
   }
 
   if (mode === 'lint') {
     const args = rest.length > 0 ? ['eslint', '--quiet', ...rest] : ['eslint', '--quiet', 'src'];
-    const ok = runStep('lint', 'npx', args);
+    const ok = await runStep('lint', 'npx', args);
     process.exit(ok ? 0 : 1);
   }
 
   if (mode === 'unit') {
-    const ok = runStep('unit', 'npx', ['vitest', 'run', '--reporter=dot', '--bail=1', ...rest]);
+    const ok = await runStep('unit', 'npx', ['vitest', 'run', '--reporter=dot', '--bail=1', ...rest]);
     process.exit(ok ? 0 : 1);
   }
 
@@ -297,15 +434,15 @@ function main() {
     checkDocsParity();
     const okDeps = checkDeclaredDependencies();
     if (!okDeps) process.exit(1);
-    const okTsc = runStep('tsc', 'npx', ['tsc', '--noEmit', '--pretty', 'false']);
+    const okTsc = await runStep('tsc', 'npx', ['tsc', '--noEmit', '--pretty', 'false']);
     if (!okTsc) process.exit(1);
-    const okLint = runStep('lint', 'npx', ['eslint', '--quiet', 'src']);
+    const okLint = await runStep('lint', 'npx', ['eslint', '--quiet', 'src']);
     if (!okLint) process.exit(1);
-    const okUnit = runStep('unit', 'npx', ['vitest', 'run', '--reporter=dot', '--bail=1']);
+    const okUnit = await runStep('unit', 'npx', ['vitest', 'run', '--reporter=dot', '--bail=1']);
     process.exit(okUnit ? 0 : 1);
   }
 
-  process.stderr.write(`Unknown mode "${mode}". Use: tsc | lint | unit | pr-check | api-map | docs-parity\n`);
+  process.stderr.write(`Unknown mode "${mode}". Use: tsc | lint | unit | pr-check | api-map | docs-parity | exec\n`);
   process.exit(1);
 }
 
