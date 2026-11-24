@@ -5,6 +5,16 @@ The canonical version is stored in [`.agents/plugins/zeroburn/plugin.json`](.age
 
 ---
 
+## [2.9.1] - 2026-11-24
+
+### Fixed
+- **Streaming `quiet-cli.mjs` Without Node's 1 MiB `spawnSync` `maxBuffer` Limit:**
+  - Replaced `spawnSync` in `runStep()` with async streaming `spawn` that writes full stdout/stderr directly to a local temp log artifact (`os.tmpdir()`) while maintaining separate bounded stdout/stderr line ring buffers (`200` lines each) in memory—eliminating `ENOBUFS` kills on noisy test suites (`>1 MiB`) and preventing buffered stdout from drowning out stderr diagnostics.
+  - Explicitly distinguishes spawn errors (`ERROR (ENOENT)`) and signal kills (`KILLED (signal SIGKILL/SIGTERM)`) from ordinary non-zero test exits, and prints the full streamed log path on failures/kills (auto-cleaning the temp log on green runs).
+  - Added `exec` subcommand and regression suite (`benchmarks/test-quiet-cli.mjs`) testing `>1.5 MiB` pass, `>1.5 MiB` fail + disk artifact persistence, `ENOENT`, and `SIGKILL`.
+
+---
+
 ## [2.9.0] - 2026-11-23
 
 ### Added

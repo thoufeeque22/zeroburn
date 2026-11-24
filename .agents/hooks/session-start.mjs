@@ -19,7 +19,7 @@ function loadPluginVersion(cwd) {
       }
     }
   }
-  return '2.9.0';
+  return '2.9.1';
 }
 
 function loadProjectConfig(cwd) {
