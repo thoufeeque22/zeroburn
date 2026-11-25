@@ -1,12 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { checkLargeUnboundedRead, rewriteNoisyCommand } from './command-rewrite.mjs';
 
 function respond(payload) {
   process.stdout.write(JSON.stringify(payload));
   process.exit(0);
 }
 
-const allow = () => respond({ decision: 'allow' });
+const allow = (extra = {}) => respond({ decision: 'allow', ...extra });
 const deny = (reason) => respond({ decision: 'deny', reason });
 
 function countCodeLines(content) {
@@ -140,9 +141,14 @@ function main() {
     if (name === 'write_file' || name === 'edit_file') {
       const reason = checkFileWrite(name, args, cwd);
       if (reason) deny(reason);
+    } else if (name === 'read_file') {
+      const reason = checkLargeUnboundedRead(args, cwd);
+      if (reason) deny(reason);
     } else if (name === 'run_command') {
       const reason = checkCommand(args);
       if (reason) deny(reason);
+      const rewritten = rewriteNoisyCommand(args.CommandLine, cwd);
+      if (rewritten) allow({ overwrite: { CommandLine: rewritten } });
     }
     allow();
   } catch {

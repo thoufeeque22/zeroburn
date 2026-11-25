@@ -13,17 +13,32 @@
  *   node .agents/scripts/quiet-cli.mjs pr-check
  *   node .agents/scripts/quiet-cli.mjs api-map
  *   node .agents/scripts/quiet-cli.mjs docs-parity
+ *   node .agents/scripts/quiet-cli.mjs exec [--query "<terms>"] <cmd> [args...]
+ *   node .agents/scripts/quiet-cli.mjs search "<terms>" [--source <id>] [--limit <n>]
+ *   node .agents/scripts/quiet-cli.mjs stats [--json] [--reset]
+ *   node .agents/scripts/quiet-cli.mjs purge
  */
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { builtinModules, createRequire } from 'node:module';
+import {
+  formatStats,
+  indexOutput,
+  purgeStore,
+  readStats,
+  recordSavings,
+  resetStats,
+  searchOutputs,
+} from './quiet-store.mjs';
 
 const require = createRequire(import.meta.url);
 
 const MAX_FAILURE_LINES = 35;
 const MAX_RING_LINES = 200;
+const SPILLOVER_INDEX_MIN_BYTES = 4096;
+const SPILLOVER_INDEX_MAX_BYTES = 5 * 1024 * 1024;
 
 function loadProjectConfig() {
   for (const rel of ['.agents/project.config.json', '.agents/project.config.example.json']) {
@@ -111,7 +126,24 @@ function isNoiseLine(line) {
   return !line || line.startsWith('RUN  v') || line.includes('transform ') || line.includes('[queued]');
 }
 
-async function runStep(label, cmd, args) {
+async function indexLogFileIfEligible(logPath, { label, command, exitCode, totalBytes, force = false }) {
+  if (!force && totalBytes < SPILLOVER_INDEX_MIN_BYTES) return null;
+  if (totalBytes > SPILLOVER_INDEX_MAX_BYTES) return null;
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  if (!fs.existsSync(logPath)) return null;
+  try {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    const rawText = stripAnsi(fs.readFileSync(logPath, 'utf8'));
+    const indexed = await indexOutput({ label, command, text: rawText, exitCode });
+    return indexed.chunkCount > 0 ? indexed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function runStep(label, cmd, args, opts = {}) {
+  const query = typeof opts.query === 'string' && opts.query.trim() ? opts.query.trim() : null;
+  const commandStr = [cmd, ...args].join(' ');
   const logPath = createLogArtifactPath(label);
   const stdoutRing = [];
   const stderrRing = [];
@@ -223,14 +255,48 @@ async function runStep(label, cmd, args) {
 
   if (outcome.signal) {
     const tail = combinedRing.slice(-MAX_FAILURE_LINES);
-    process.stderr.write(
+    const out =
       `[quiet-cli] ${label}: KILLED (signal ${outcome.signal}) — captured ${totalLines} lines (${totalBytes} bytes); full log: ${logPath}\n` +
-        (tail.length > 0 ? `${tail.join('\n')}\n` : '')
-    );
+      (tail.length > 0 ? `${tail.join('\n')}\n` : '');
+    process.stderr.write(out);
+    recordSavings({ label, rawBytes: totalBytes, emittedBytes: Buffer.byteLength(out, 'utf8') });
     return false;
   }
 
   if (outcome.code === 0) {
+    if (query) {
+      const indexed = await indexLogFileIfEligible(logPath, {
+        label,
+        command: commandStr,
+        exitCode: 0,
+        totalBytes,
+        force: true,
+      });
+      try {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        if (fs.existsSync(logPath)) fs.unlinkSync(logPath);
+      } catch {
+        // best-effort cleanup
+      }
+      if (indexed) {
+        const res = await searchOutputs(query, { sourceId: indexed.sourceId, limit: opts.limit || 5 });
+        const header = `[quiet-cli] ${label}: PASS (${indexed.sourceId}, ${indexed.chunkCount} chunks via ${indexed.engine}; ${res.hits.length} hit(s) for "${query}")`;
+        const body =
+          res.hits.length > 0
+            ? res.hits.map((h) => `--- [${h.sourceId}#${h.chunkIdx}] ---\n${h.snippet}`).join('\n')
+            : `(no direct match — search with: node .agents/scripts/quiet-cli.mjs search "<terms>" --source ${indexed.sourceId})`;
+        const out = `${header}\n${body}\n`;
+        process.stdout.write(out);
+        recordSavings({
+          label,
+          rawBytes: totalBytes,
+          emittedBytes: Buffer.byteLength(out, 'utf8'),
+          engine: indexed.engine,
+        });
+        return true;
+      }
+    }
+
     try {
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       if (fs.existsSync(logPath)) fs.unlinkSync(logPath);
@@ -239,20 +305,38 @@ async function runStep(label, cmd, args) {
     }
     const extra =
       summaryMatches.length > 0 ? ` (${summaryMatches.slice(-2).join(', ').replace(/\s+/g, ' ')})` : '';
-    process.stdout.write(`[quiet-cli] ${label}: PASS${extra}\n`);
+    const out = `[quiet-cli] ${label}: PASS${extra}\n`;
+    process.stdout.write(out);
+    recordSavings({ label, rawBytes: totalBytes, emittedBytes: Buffer.byteLength(out, 'utf8') });
     return true;
   }
 
+  const indexed = await indexLogFileIfEligible(logPath, {
+    label,
+    command: commandStr,
+    exitCode: outcome.code ?? 1,
+    totalBytes,
+  });
   const kernelDigest =
     process.env.ZEROBURN_DISABLE_JUDGMENT_KERNEL === '1'
       ? null
       : summarizeFailureWithJudgmentKernel(label, combinedRing);
   const tail = combinedRing.slice(-MAX_FAILURE_LINES);
-  process.stderr.write(
+  const indexHint = indexed
+    ? `[quiet-cli] indexed ${indexed.chunkCount} chunks (${indexed.engine}) as ${indexed.sourceId} — search: node .agents/scripts/quiet-cli.mjs search "<terms>" --source ${indexed.sourceId}\n`
+    : '';
+  const out =
     `[quiet-cli] ${label}: FAIL (exit ${outcome.code ?? 1}) — showing ${tail.length}/${totalLines} lines (full log: ${logPath}):\n` +
-      (kernelDigest ? `${kernelDigest}\n` : '') +
-      `${tail.join('\n')}\n`
-  );
+    (kernelDigest ? `${kernelDigest}\n` : '') +
+    `${tail.join('\n')}\n` +
+    indexHint;
+  process.stderr.write(out);
+  recordSavings({
+    label,
+    rawBytes: totalBytes,
+    emittedBytes: Buffer.byteLength(out, 'utf8'),
+    engine: indexed?.engine || 'quiet-cli',
+  });
   return false;
 }
 
@@ -402,13 +486,84 @@ async function main() {
     process.exit(0);
   }
 
-  if (mode === 'exec') {
-    const [cmd, ...cmdArgs] = rest;
-    if (!cmd) {
-      process.stderr.write('Usage: node .agents/scripts/quiet-cli.mjs exec <cmd> [args...]\n');
+  if (mode === 'search') {
+    let sourceId = null;
+    let limit = 5;
+    const queryParts = [];
+    for (let i = 0; i < rest.length; i += 1) {
+      if (rest[i] === '--source' && rest[i + 1]) {
+        sourceId = rest[i + 1];
+        i += 1;
+      } else if (rest[i] === '--limit' && rest[i + 1]) {
+        limit = Number(rest[i + 1]) || 5;
+        i += 1;
+      } else {
+        queryParts.push(rest[i]);
+      }
+    }
+    const query = queryParts.join(' ').trim();
+    if (!query) {
+      process.stderr.write('Usage: node .agents/scripts/quiet-cli.mjs search "<terms>" [--source <id>] [--limit <n>]\n');
       process.exit(1);
     }
-    const ok = await runStep(path.basename(cmd), cmd, cmdArgs);
+    const res = await searchOutputs(query, { sourceId, limit });
+    if (res.hits.length === 0) {
+      process.stdout.write(`[quiet-cli] search (${res.engine}): 0 hits for "${query}"\n`);
+      process.exit(0);
+    }
+    const lines = [
+      `[quiet-cli] search (${res.engine}): ${res.hits.length} hit(s) for "${query}"`,
+      ...res.hits.map((h) => `--- [${h.sourceId}#${h.chunkIdx} ${h.label}] ---\n${h.snippet}`),
+    ];
+    process.stdout.write(`${lines.join('\n')}\n`);
+    process.exit(0);
+  }
+
+  if (mode === 'stats') {
+    if (rest.includes('--reset')) {
+      resetStats();
+      process.stdout.write('[quiet-cli] stats: reset.\n');
+      process.exit(0);
+    }
+    const stats = readStats();
+    if (rest.includes('--json')) {
+      process.stdout.write(`${JSON.stringify(stats, null, 2)}\n`);
+    } else {
+      process.stdout.write(formatStats(stats));
+    }
+    process.exit(0);
+  }
+
+  if (mode === 'purge') {
+    purgeStore();
+    process.stdout.write('[quiet-cli] purge: cleared local spillover index and savings ledger.\n');
+    process.exit(0);
+  }
+
+  if (mode === 'exec') {
+    let query = null;
+    let limit = 5;
+    const positional = [];
+    for (let i = 0; i < rest.length; i += 1) {
+      if (positional.length === 0 && (rest[i] === '--query' || rest[i] === '--intent') && rest[i + 1]) {
+        query = rest[i + 1];
+        i += 1;
+      } else if (positional.length === 0 && rest[i] === '--limit' && rest[i + 1]) {
+        limit = Number(rest[i + 1]) || 5;
+        i += 1;
+      } else if (positional.length === 0 && rest[i] === '--') {
+        positional.push(...rest.slice(i + 1));
+        break;
+      } else {
+        positional.push(rest[i]);
+      }
+    }
+    const [cmd, ...cmdArgs] = positional;
+    if (!cmd) {
+      process.stderr.write('Usage: node .agents/scripts/quiet-cli.mjs exec [--query "<terms>"] <cmd> [args...]\n');
+      process.exit(1);
+    }
+    const ok = await runStep(path.basename(cmd), cmd, cmdArgs, { query, limit });
     process.exit(ok ? 0 : 1);
   }
 
@@ -442,7 +597,9 @@ async function main() {
     process.exit(okUnit ? 0 : 1);
   }
 
-  process.stderr.write(`Unknown mode "${mode}". Use: tsc | lint | unit | pr-check | api-map | docs-parity | exec\n`);
+  process.stderr.write(
+    `Unknown mode "${mode}". Use: tsc | lint | unit | pr-check | api-map | docs-parity | exec | search | stats | purge\n`
+  );
   process.exit(1);
 }
 
