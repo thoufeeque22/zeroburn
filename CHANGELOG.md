@@ -5,6 +5,18 @@ The canonical version is stored in [`.agents/plugins/zeroburn/plugin.json`](.age
 
 ---
 
+## [2.10.1] - 2026-11-25
+
+### Fixed
+- **Broken `<owner>` Placeholder in Upgrade & Update-Check URLs (`init.mjs`, `session-start.mjs`, `live-audit.mjs`, `benchmarks/try-now.mjs`):**
+  - Restored canonical `thoufeeque22/zeroburn` upstream repository URLs (with `ZEROBURN_UPSTREAM_REPO` env override in `init.mjs`) so `node .agents/scripts/init.mjs --upgrade` and in-session update banners work out of the box.
+- **Preserve Existing `project.config.json` & Stamp New Version on `--upgrade` (`init.mjs`):**
+  - Reads existing `.agents/project.config.json` before copying upgraded `.agents/` files, skips overwriting it during `cpSync`, reloads the upgraded `plugin.json` version, and merges new template defaults (such as `maxUnboundedReadBytes`) without clobbering custom project settings.
+- **Missing `node:os` Import in `session-start.mjs`:**
+  - Added `import os from 'node:os'` so `checkUpstreamVersion()`'s 24-hour cache in `os.tmpdir()` executes cleanly instead of throwing `ReferenceError`.
+
+---
+
 ## [2.10.0] - 2026-11-25
 
 ### Added
