@@ -5,7 +5,7 @@
  * Works in ANY git repository with zero dependencies (Node 18+).
  * Can be run locally (`node .agents/scripts/live-audit.mjs` or `node benchmarks/try-now.mjs`)
  * or piped directly via curl:
- *   curl -fsSL https://raw.githubusercontent.com/<owner>/zeroburn/main/benchmarks/try-now.mjs | node
+ *   curl -fsSL https://raw.githubusercontent.com/thoufeeque22/zeroburn/main/benchmarks/try-now.mjs | node
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -299,7 +299,7 @@ function loadPluginVersion(cwd) {
       }
     }
   }
-  return '2.10.0';
+  return '2.10.1';
 }
 
 function main() {
@@ -456,8 +456,8 @@ function main() {
   }
 
   console.log('\n⭐ Install ZeroBurn in this repo (1 command):');
-  console.log('   git clone https://github.com/<owner>/zeroburn /tmp/zb && cp -R /tmp/zb/.agents . && node .agents/scripts/init.mjs --pull');
-  console.log('🔗 Star on GitHub: https://github.com/<owner>/zeroburn\n');
+  console.log('   git clone https://github.com/thoufeeque22/zeroburn /tmp/zb && cp -R /tmp/zb/.agents . && node .agents/scripts/init.mjs --pull');
+  console.log('🔗 Star on GitHub: https://github.com/thoufeeque22/zeroburn\n');
 }
 
 main();

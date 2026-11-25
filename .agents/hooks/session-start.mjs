@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { execFileSync, spawn } from 'node:child_process';
 
@@ -19,7 +20,7 @@ function loadPluginVersion(cwd) {
       }
     }
   }
-  return '2.10.0';
+  return '2.10.1';
 }
 
 function loadProjectConfig(cwd) {
@@ -79,7 +80,7 @@ function checkUpstreamVersion(cwd, currentVersion) {
         // eslint-disable-next-line sonarjs/no-os-command-from-path
         const out = execFileSync(
           'curl',
-          ['-sf', '--max-time', '1.5', 'https://api.github.com/repos/<owner>/zeroburn/releases/latest'],
+          ['-sf', '--max-time', '1.5', 'https://api.github.com/repos/thoufeeque22/zeroburn/releases/latest'],
           { encoding: 'utf8', timeout: 2000 }
         );
         const parsed = JSON.parse(out);

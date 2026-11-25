@@ -57,8 +57,10 @@ function loadPluginVersion(cwd) {
       }
     }
   }
-  return '2.10.0';
+  return '2.10.1';
 }
+
+const UPSTREAM_REPO = process.env.ZEROBURN_UPSTREAM_REPO || 'thoufeeque22/zeroburn';
 
 function detectHardwareDefaults() {
   const ramGb = Math.round(os.totalmem() / 1024 ** 3);
@@ -186,20 +188,33 @@ function ensureOllamaAndResolveModels(ollamaUrl, shouldPull, hw) {
 function main() {
   const cwd = process.cwd();
   const args = new Set(process.argv.slice(2));
-  const pluginVersion = loadPluginVersion(cwd);
+  let pluginVersion = loadPluginVersion(cwd);
 
   if (args.has('--version') || args.has('-v')) {
     process.stdout.write(`zeroburn v${pluginVersion}\n`);
     return;
   }
 
+  const cfgPath = path.join(cwd, '.agents', 'project.config.json');
+  const examplePath = path.join(cwd, '.agents', 'project.config.example.json');
+  let savedUserCfg = null;
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  if (fs.existsSync(cfgPath)) {
+    try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      savedUserCfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    } catch {
+      savedUserCfg = null;
+    }
+  }
+
   if (args.has('--upgrade')) {
-    process.stdout.write(`[zeroburn upgrade] Fetching latest ZeroBurn release from GitHub...\n`);
+    process.stdout.write(`[zeroburn upgrade] Fetching latest ZeroBurn release from GitHub (${UPSTREAM_REPO})...\n`);
     try {
       // eslint-disable-next-line sonarjs/no-os-command-from-path
       const releaseJson = execFileSync(
         'curl',
-        ['-sf', '--max-time', '5', 'https://api.github.com/repos/<owner>/zeroburn/releases/latest'],
+        ['-sf', '--max-time', '5', `https://api.github.com/repos/${UPSTREAM_REPO}/releases/latest`],
         { encoding: 'utf8', timeout: 6000 }
       );
       const parsed = JSON.parse(releaseJson);
@@ -207,7 +222,7 @@ function main() {
       process.stdout.write(`[zeroburn upgrade] Found latest release: ${latestTag}. Downloading...\n`);
       const tmpDir = path.join(os.tmpdir(), `zb-upgrade-${Date.now()}`);
       // eslint-disable-next-line sonarjs/no-os-command-from-path
-      execFileSync('git', ['clone', '--depth', '1', '--branch', latestTag, 'https://github.com/<owner>/zeroburn', tmpDir], {
+      execFileSync('git', ['clone', '--depth', '1', '--branch', latestTag, `https://github.com/${UPSTREAM_REPO}`, tmpDir], {
         stdio: 'inherit',
         timeout: 20000,
       });
@@ -215,15 +230,20 @@ function main() {
       const agentsDest = path.join(cwd, '.agents');
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       if (fs.existsSync(agentsSrc)) {
+        const srcCfgPath = path.join(agentsSrc, 'project.config.json');
         // eslint-disable-next-line security/detect-non-literal-fs-filename
-        fs.cpSync(agentsSrc, agentsDest, { recursive: true });
+        fs.cpSync(agentsSrc, agentsDest, {
+          recursive: true,
+          filter: (src) => !(savedUserCfg && path.resolve(src) === path.resolve(srcCfgPath)),
+        });
+        pluginVersion = loadPluginVersion(cwd);
         process.stdout.write(`[zeroburn upgrade] Updated .agents/ to ${latestTag} successfully.\n`);
       }
       // eslint-disable-next-line security/detect-non-literal-fs-filename
       fs.rmSync(tmpDir, { recursive: true, force: true });
     } catch (err) {
       process.stderr.write(`[zeroburn upgrade] Failed to download upgrade: ${err.message}\n`);
-      process.stderr.write(`Fallback manual command:\n  git clone --depth 1 https://github.com/<owner>/zeroburn /tmp/zb && cp -R /tmp/zb/.agents . && rm -rf /tmp/zb && node .agents/scripts/init.mjs\n`);
+      process.stderr.write(`Fallback manual command:\n  git clone --depth 1 https://github.com/${UPSTREAM_REPO} /tmp/zb && cp -R /tmp/zb/.agents . && rm -rf /tmp/zb && node .agents/scripts/init.mjs\n`);
       return;
     }
   }
@@ -231,21 +251,17 @@ function main() {
   const shouldPull = args.has('--pull');
   const pinModels = args.has('--pin');
 
-  const cfgPath = path.join(cwd, '.agents', 'project.config.json');
-  const examplePath = path.join(cwd, '.agents', 'project.config.example.json');
-  let baseCfg = {};
-  for (const p of [cfgPath, examplePath]) {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
-    if (fs.existsSync(p)) {
-      try {
-        // eslint-disable-next-line security/detect-non-literal-fs-filename
-        baseCfg = JSON.parse(fs.readFileSync(p, 'utf8'));
-        break;
-      } catch {
-        // ignore
-      }
+  let templateCfg = {};
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  if (fs.existsSync(examplePath)) {
+    try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename
+      templateCfg = JSON.parse(fs.readFileSync(examplePath, 'utf8'));
+    } catch {
+      templateCfg = {};
     }
   }
+  const baseCfg = savedUserCfg ? { ...templateCfg, ...savedUserCfg } : templateCfg;
 
   const prevVersion = baseCfg.zeroburnVersion || 'unversioned';
   const hw = detectHardwareDefaults();
