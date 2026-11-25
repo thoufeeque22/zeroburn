@@ -5,6 +5,22 @@ The canonical version is stored in [`.agents/plugins/zeroburn/plugin.json`](.age
 
 ---
 
+## [2.10.0] - 2026-11-25
+
+### Added
+- **Deterministic `PreToolUse` Command Auto-Rewrite & Large-Read Context-Guard (`.agents/hooks/command-rewrite.mjs`, `.agents/hooks/pre-tool-guard.mjs`, `.agents/hooks.json`):**
+  - Uses Antigravity's native `PreToolUse` `overwrite` contract to transparently rewrite raw noisy verification commands (`npx/pnpm vitest run`, `npx/pnpm tsc --noEmit`, `npx/pnpm eslint`, `pnpm pr-check`, `pnpm test:unit`) into `node .agents/scripts/quiet-cli.mjs ...` so context savings hold even when an agent forgets the wrapper (safe passthrough on compound shells `&&`/`|`/`>`, `--watch`, `--fix`, or `ZEROBURN_NO_REWRITE=1`).
+  - Blocks unbounded full-file `read_file` calls on large source files (`>24 KB`, configurable via `maxUnboundedReadBytes` in `project.config.json`) without `StartLine`/`EndLine`, redirecting agents to `codebase-memory-mcp` or bounded line ranges.
+- **Zero-Dependency Local FTS5 Spillover Index & Queryable Search (`.agents/scripts/quiet-store.mjs`, `.agents/scripts/quiet-cli.mjs`):**
+  - Uses Node's built-in `node:sqlite` FTS5 (BM25 + Porter stemming, WAL mode) on Node >=22.5 with automatic JSONL token-scoring fallback on Node 18–22.4 (0 external dependencies, 0 MCP tool-schema token tax).
+  - Adds `quiet-cli.mjs exec --query "<terms>" <cmd...>` (and `--intent`) to index arbitrary command outputs and emit only top BM25-matching snippets, auto-indexes failing runs >=4 KB, and adds `quiet-cli.mjs search "<terms>" [--source <id>] [--limit <n>]` and `quiet-cli.mjs purge`.
+- **Live Session Byte & Token Savings Telemetry (`quiet-cli.mjs stats`):**
+  - Records exact `rawBytes` vs. `emittedBytes` on every `quiet-cli.mjs` run into a local session ledger (`os.tmpdir()/zeroburn-ctx/<repo-hash>/savings.jsonl`) and renders cumulative savings with an ASCII bar and per-command breakdown (`stats`, `stats --json`, `stats --reset`).
+- **Expanded Regression Suites (`benchmarks/test-quiet-cli.mjs`, `benchmarks/test-pre-tool-guard.mjs`):**
+  - Covers FTS5 `--query` retrieval, punctuation-safe `search`, live `stats`/`purge`, `PreToolUse` command auto-rewrite, passthrough safety, and large unbounded `read_file` blocking.
+
+---
+
 ## [2.9.1] - 2026-11-24
 
 ### Fixed

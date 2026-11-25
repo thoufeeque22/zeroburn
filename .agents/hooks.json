@@ -11,7 +11,7 @@
   "safety-and-modularity-guard": {
     "PreToolUse": [
       {
-        "matcher": "write_file|edit_file|run_command",
+        "matcher": "write_file|edit_file|run_command|read_file",
         "hooks": [
           {
             "type": "command",

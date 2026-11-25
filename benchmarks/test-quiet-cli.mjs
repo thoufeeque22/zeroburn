@@ -74,7 +74,67 @@ try {
   assert.match(sigRes.stderr, /\[quiet-cli\] node: KILLED \(signal SIGKILL\)/);
   assert.match(sigRes.stderr, /before-kill-diagnostic-line/);
 
-  console.log('✅ All 4 quiet-cli streaming & error-distinction tests PASSED (>1.5 MiB pass, >1.5 MiB fail + artifact, ENOENT, SIGKILL)');
+  // 5. FTS5 spillover indexing & --query snippet retrieval (>95% byte reduction on 100 KB log)
+  const bigLogCode = `
+    for (let i = 0; i < 1200; i++) {
+      process.stdout.write('INFO 2026-11-25T10:00:00Z worker=ok seq=' + i + ' payload=' + 'a'.repeat(50) + '\\n');
+    }
+    process.stdout.write('ERROR 2026-11-25T10:00:05Z StripeWebhookSignatureMismatch invoice_id=inv_99123 status=401\\n');
+    for (let i = 0; i < 600; i++) {
+      process.stdout.write('INFO 2026-11-25T10:00:10Z heartbeat=ok seq=' + i + ' payload=' + 'b'.repeat(50) + '\\n');
+    }
+  `;
+  const queryRes = spawnSync(
+    process.execPath,
+    [QUIET_CLI, 'exec', '--query', 'StripeWebhookSignatureMismatch inv_99123', process.execPath, '-e', bigLogCode],
+    { encoding: 'utf8', env: BASE_ENV }
+  );
+  assert.equal(queryRes.status, 0, `Expected exit 0 for --query exec, got ${queryRes.status}: ${queryRes.stderr}`);
+  assert.match(queryRes.stdout, /\[quiet-cli\] node: PASS \(s[a-z0-9-]+, \d+ chunks via (sqlite-fts5|jsonl-fallback); [1-9]\d* hit\(s\)/);
+  assert.match(queryRes.stdout, /StripeWebhookSignatureMismatch invoice_id=inv_99123/);
+  assert.ok(queryRes.stdout.length < 3000, `Expected compact snippet output (<3KB), got ${queryRes.stdout.length} chars`);
+
+  // 6. Search across indexed outputs (including punctuation/paths from failing test #2)
+  const searchRes = spawnSync(
+    process.execPath,
+    [QUIET_CLI, 'search', 'src/billing.test.ts:42 403'],
+    { encoding: 'utf8', env: BASE_ENV }
+  );
+  assert.equal(searchRes.status, 0, `Expected exit 0 for search, got ${searchRes.status}: ${searchRes.stderr}`);
+  assert.match(searchRes.stdout, /AssertionError: expected 403 to be 200 at src\/billing\.test\.ts:42/);
+
+  // 7. Live session savings telemetry (stats --json + formatted + --reset)
+  const statsJsonRes = spawnSync(process.execPath, [QUIET_CLI, 'stats', '--json'], {
+    encoding: 'utf8',
+    env: BASE_ENV,
+  });
+  assert.equal(statsJsonRes.status, 0);
+  const stats = JSON.parse(statsJsonRes.stdout);
+  assert.ok(stats.calls >= 4, `Expected >=4 recorded runs, got ${stats.calls}`);
+  assert.ok(stats.rawBytes > 3_000_000, `Expected >3MB rawBytes tracked, got ${stats.rawBytes}`);
+  assert.ok(stats.savedPct > 98, `Expected >98% savedPct, got ${stats.savedPct}`);
+
+  const statsTextRes = spawnSync(process.execPath, [QUIET_CLI, 'stats'], {
+    encoding: 'utf8',
+    env: BASE_ENV,
+  });
+  assert.equal(statsTextRes.status, 0);
+  assert.match(statsTextRes.stdout, /\[quiet-cli\] stats \(\d+ runs\): .+ saved, ~.+ tokens kept out/);
+
+  // 8. Purge clears index and stats cleanly
+  const purgeRes = spawnSync(process.execPath, [QUIET_CLI, 'purge'], {
+    encoding: 'utf8',
+    env: BASE_ENV,
+  });
+  assert.equal(purgeRes.status, 0);
+  const afterPurge = JSON.parse(
+    spawnSync(process.execPath, [QUIET_CLI, 'stats', '--json'], { encoding: 'utf8', env: BASE_ENV }).stdout
+  );
+  assert.equal(afterPurge.calls, 0, 'Expected 0 calls after purge');
+
+  console.log(
+    '✅ All 8 quiet-cli tests PASSED (>1.5 MiB pass/fail, ENOENT, SIGKILL, FTS5 --query, search, stats, purge)'
+  );
 } finally {
   fs.rmSync(TEST_LOG_DIR, { recursive: true, force: true });
 }

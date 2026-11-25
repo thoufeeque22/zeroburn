@@ -19,7 +19,7 @@ function loadPluginVersion(cwd) {
       }
     }
   }
-  return '2.9.1';
+  return '2.10.0';
 }
 
 function loadProjectConfig(cwd) {
@@ -220,7 +220,7 @@ function main() {
     const zeroburnSync = hasOrchChanges(cwd)
       ? 'PENDING (export & push ../zeroburn via `node .agents/scripts/export-public-orchestrator.mjs ../zeroburn`)'
       : 'CLEAN';
-    const msg = `Workspace context: zeroburn=v${version}${driftNote}${updateBanner}, branch=${branch}, dirty_files=${dirtyCount}, pending_observations=${obsCount}${obsFlag}, local_ollama=${ollama.status} (coder=${ollama.coder}, prose=${ollama.prose}), graph_project=${graphProject}, zeroburn_sync=${zeroburnSync}. Efficiency rules: (1) Query codebase-memory-mcp directly with project="${graphProject}" (skip list_projects & full-file reads), (2) Batch independent tool calls in parallel turns, (3) Use \`node .agents/scripts/quiet-cli.mjs <tsc|lint|unit|pr-check|api-map>\` for 1-line verification logs, (4) Follow Hybrid Quota Policy (Options A+B+C) in .agents/base/ORCHESTRATION.md.`;
+    const msg = `Workspace context: zeroburn=v${version}${driftNote}${updateBanner}, branch=${branch}, dirty_files=${dirtyCount}, pending_observations=${obsCount}${obsFlag}, local_ollama=${ollama.status} (coder=${ollama.coder}, prose=${ollama.prose}), graph_project=${graphProject}, zeroburn_sync=${zeroburnSync}. Efficiency rules: (1) Query codebase-memory-mcp directly with project="${graphProject}" (skip list_projects & full-file reads), (2) Batch independent tool calls in parallel turns, (3) Use \`node .agents/scripts/quiet-cli.mjs <tsc|lint|unit|pr-check|api-map|exec|search|stats>\` for 1-line verification logs & FTS5 output search, (4) Follow Hybrid Quota Policy (Options A+B+C) in .agents/base/ORCHESTRATION.md.`;
     process.stdout.write(JSON.stringify({ injectSteps: [{ systemMessage: { systemMessage: msg } }] }));
   } catch {
     process.stdout.write('{}');

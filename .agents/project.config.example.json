@@ -1,5 +1,5 @@
 {
-  "zeroburnVersion": "2.9.1",
+  "zeroburnVersion": "2.10.0",
   "projectName": "my-app",
   "brandName": "my-app",
   "socialHandle": "@myapp",
@@ -13,6 +13,7 @@
   "localCoderModel": "auto",
   "localProseModel": "auto",
   "maxLinesPerFile": 200,
+  "maxUnboundedReadBytes": 24576,
   "observationsTriageThreshold": 5,
   "highRiskPrefixes": [
     "src/lib/auth/",
