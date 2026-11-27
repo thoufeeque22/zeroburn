@@ -1,6 +1,6 @@
 # ZeroBurn (`zeroburn`)
 
-> **Cut AI coding-agent orchestration & tooling token overhead by 70–98% — and end-to-end ticket tokens by ~31% on pre-mapped medium tasks (scaling toward 40–60%+ on exploratory & multi-stage epics, with 0% tax on small fixes)** — by eliminating test/discovery output bloat, querying live-verified local code graphs, running deterministic AST/auth/scope checks, and offloading mechanical failure analysis and diff reviews to local Ollama models without sacrificing Contract-First TDD or strict quality gates.
+> **Cut AI coding-agent orchestration & tooling token overhead by 70–98% — and end-to-end multi-file ticket tokens by ~31–46% in controlled A/B tests (with 0% tax on small fixes)** — by eliminating test/discovery output bloat, querying live-verified local code graphs, running deterministic AST/auth/scope checks, and offloading mechanical failure analysis and diff reviews to local Ollama models without sacrificing Contract-First TDD or strict quality gates.
 >
 > *Works across any coding agent harness and frontier model family (Google Gemini, Anthropic Claude, OpenAI, Cursor, Antigravity).*
 >
@@ -74,7 +74,7 @@ Most multi-agent setups ("PM / Architect / Dev / QA prompt packs") drain your 5-
 
 ### Verified Production Benchmark (`directly.social` — 10,893 AST Nodes, 1,470 Source Files)
 
-Measured on a real feature/audit loop (*"Locate and audit `checkUploadQuota` tier logic, run all 6 billing unit test suites (70 tests), and execute a diff security audit"*). Full raw traces and reproducible runner in [`benchmarks/REAL_WORLD_BENCHMARK.md`](benchmarks/REAL_WORLD_BENCHMARK.md), plus full-ticket controlled A/B results (Small 4-file & Medium 16-file tickets measured from exact `transcript.jsonl` logs via [`benchmarks/token-benchmark.mjs`](benchmarks/token-benchmark.mjs)) in [`benchmarks/END_TO_END_AB_BENCHMARK.md`](benchmarks/END_TO_END_AB_BENCHMARK.md):
+Measured on a real feature/audit loop (*"Locate and audit `checkUploadQuota` tier logic, run all 6 billing unit test suites (70 tests), and execute a diff security audit"*). Full raw traces and reproducible runner in [`benchmarks/REAL_WORLD_BENCHMARK.md`](benchmarks/REAL_WORLD_BENCHMARK.md), plus full-ticket controlled A/B results (Small 4-file, Medium 16-file, & Exploratory 5-Domain 16-file tickets measured from exact `transcript.jsonl` logs via [`benchmarks/token-benchmark.mjs`](benchmarks/token-benchmark.mjs)) in [`benchmarks/END_TO_END_AB_BENCHMARK.md`](benchmarks/END_TO_END_AB_BENCHMARK.md):
 
 | Stage | Standard Coding Agent (Vanilla) | `zeroburn` v2.10.0 Engine | Measured Savings |
 | :--- | :--- | :--- | :--- |

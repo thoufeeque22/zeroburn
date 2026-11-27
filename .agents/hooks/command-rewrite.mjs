@@ -10,7 +10,10 @@ import path from 'node:path';
 
 const DEFAULT_MAX_UNBOUNDED_READ_BYTES = 24576;
 
-const SHELL_COMPOUND_RE = /[|;&><`\n]|\$\(/;
+// Pipes, redirects, semicolons, subshells, newlines, or single background `&` stay untouched.
+// Pure `&&` chains are split and rewritten segment-by-segment so chained verification
+// commands (`npx tsc --noEmit && pnpm lint && npx vitest run ...`) still get quiet-cli receipts.
+const UNSAFE_SHELL_RE = /[|;><`\n]|\$\(|(?<!&)&(?!&)/;
 const INTERACTIVE_FLAG_RE = /(?:^|\s)(?:--watch|-w|--ui|--interactive)(?:\s|$)/;
 const CODE_FILE_EXT_RE = /\.(?:ts|tsx|js|jsx|mjs|cjs|py|go|rs|java|kt|swift|c|cc|cpp|h|hpp|rb|php|cs)$/i;
 
@@ -42,12 +45,9 @@ function stripRunPrefix(rest) {
   return rest.replace(/^run(?:\s+|$)/, '').trim();
 }
 
-export function rewriteNoisyCommand(rawCmd, cwd) {
-  if (process.env.ZEROBURN_NO_REWRITE === '1') return null;
-  const cmd = String(rawCmd || '').trim();
-  if (!cmd || cmd.includes('quiet-cli.mjs')) return null;
-  if (SHELL_COMPOUND_RE.test(cmd) || INTERACTIVE_FLAG_RE.test(cmd)) return null;
-  if (!hasQuietCli(cwd)) return null;
+function rewriteSingleCommand(rawSegment) {
+  const cmd = String(rawSegment || '').trim();
+  if (!cmd || cmd.includes('quiet-cli.mjs') || INTERACTIVE_FLAG_RE.test(cmd)) return null;
 
   // 1. pnpm pr-check
   if (/^pnpm(?:\s+run)?\s+pr-check$/.test(cmd)) {
@@ -61,14 +61,17 @@ export function rewriteNoisyCommand(rawCmd, cwd) {
     return extra ? `node .agents/scripts/quiet-cli.mjs unit ${extra}` : 'node .agents/scripts/quiet-cli.mjs unit';
   }
 
-  // 3. tsc --noEmit
+  // 3. tsc --noEmit / pnpm typecheck
   const tscMatch = cmd.match(/^(?:npx|pnpm(?:\s+exec)?)\s+tsc\s+--noEmit(?:\s+(.*))?$/);
   if (tscMatch) {
     const extra = (tscMatch[1] || '').trim();
     return extra ? `node .agents/scripts/quiet-cli.mjs tsc ${extra}` : 'node .agents/scripts/quiet-cli.mjs tsc';
   }
+  if (/^pnpm(?:\s+run)?\s+typecheck$/.test(cmd)) {
+    return 'node .agents/scripts/quiet-cli.mjs tsc';
+  }
 
-  // 4. eslint (skip --fix so formatting mutations aren't altered)
+  // 4. eslint / pnpm lint (skip --fix so formatting mutations aren't altered)
   const eslintMatch = cmd.match(/^(?:npx|pnpm(?:\s+exec)?)\s+eslint(?:\s+(.*))?$/);
   if (eslintMatch) {
     const extra = (eslintMatch[1] || '').trim();
@@ -76,15 +79,45 @@ export function rewriteNoisyCommand(rawCmd, cwd) {
     const cleaned = extra.replace(/(?:^|\s)--quiet(?:\s|$)/g, ' ').trim();
     return cleaned ? `node .agents/scripts/quiet-cli.mjs lint ${cleaned}` : 'node .agents/scripts/quiet-cli.mjs lint';
   }
+  const pnpmLintMatch = cmd.match(/^pnpm(?:\s+run)?\s+lint(?:\s+(?:--\s+)?(.*))?$/);
+  if (pnpmLintMatch) {
+    const extra = stripRunPrefix((pnpmLintMatch[1] || '').trim());
+    if (/(?:^|\s)--fix(?:\s|$)/.test(extra)) return null;
+    const cleaned = extra.replace(/(?:^|\s)--quiet(?:\s|$)/g, ' ').trim();
+    return cleaned ? `node .agents/scripts/quiet-cli.mjs lint ${cleaned}` : 'node .agents/scripts/quiet-cli.mjs lint';
+  }
 
-  // 5. pnpm test:unit [args]
-  const unitScriptMatch = cmd.match(/^pnpm(?:\s+run)?\s+test:unit(?:\s+(?:--\s+)?(.*))?$/);
+  // 5. pnpm test / pnpm test:unit [args]
+  const unitScriptMatch = cmd.match(/^pnpm(?:\s+run)?\s+test(?::unit)?(?:\s+(?:--\s+)?(.*))?$/);
   if (unitScriptMatch) {
     const extra = stripRunPrefix((unitScriptMatch[1] || '').trim());
     return extra ? `node .agents/scripts/quiet-cli.mjs unit ${extra}` : 'node .agents/scripts/quiet-cli.mjs unit';
   }
 
   return null;
+}
+
+export function rewriteNoisyCommand(rawCmd, cwd) {
+  if (process.env.ZEROBURN_NO_REWRITE === '1') return null;
+  const cmd = String(rawCmd || '').trim();
+  if (!cmd || UNSAFE_SHELL_RE.test(cmd) || INTERACTIVE_FLAG_RE.test(cmd)) return null;
+  if (!hasQuietCli(cwd)) return null;
+
+  if (cmd.includes('&&')) {
+    const segments = cmd.split(/\s*&&\s*/);
+    let changed = false;
+    const rewritten = segments.map((seg) => {
+      const next = rewriteSingleCommand(seg);
+      if (next) {
+        changed = true;
+        return next;
+      }
+      return seg.trim();
+    });
+    return changed ? rewritten.join(' && ') : null;
+  }
+
+  return rewriteSingleCommand(cmd);
 }
 
 export function checkLargeUnboundedRead(args, cwd) {

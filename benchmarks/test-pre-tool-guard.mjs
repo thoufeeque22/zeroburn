@@ -31,13 +31,25 @@ function runGuard(toolName, args, cwd = process.cwd(), extraEnv = {}) {
 }
 
 try {
-  // 1. Noisy commands auto-rewritten to quiet-cli.mjs
+  // 1. Noisy commands (single and chained `&&`) auto-rewritten to quiet-cli.mjs
   const rewrites = [
     ['npx vitest run src/__tests__/billing.test.ts', 'node .agents/scripts/quiet-cli.mjs unit src/__tests__/billing.test.ts'],
     ['pnpm vitest run', 'node .agents/scripts/quiet-cli.mjs unit'],
+    ['pnpm test', 'node .agents/scripts/quiet-cli.mjs unit'],
+    ['pnpm lint', 'node .agents/scripts/quiet-cli.mjs lint'],
+    ['pnpm typecheck', 'node .agents/scripts/quiet-cli.mjs tsc'],
     ['npx tsc --noEmit', 'node .agents/scripts/quiet-cli.mjs tsc'],
     ['pnpm exec eslint src/lib', 'node .agents/scripts/quiet-cli.mjs lint src/lib'],
     ['pnpm pr-check', 'node .agents/scripts/quiet-cli.mjs pr-check'],
+    [
+      'npx tsc --noEmit && pnpm lint && npx vitest run src/a.test.ts',
+      'node .agents/scripts/quiet-cli.mjs tsc && node .agents/scripts/quiet-cli.mjs lint && node .agents/scripts/quiet-cli.mjs unit src/a.test.ts',
+    ],
+    [
+      'npx tsc --noEmit && pnpm lint && pnpm test',
+      'node .agents/scripts/quiet-cli.mjs tsc && node .agents/scripts/quiet-cli.mjs lint && node .agents/scripts/quiet-cli.mjs unit',
+    ],
+    ['npx tsc --noEmit && echo done', 'node .agents/scripts/quiet-cli.mjs tsc && echo done'],
   ];
   for (const [input, expected] of rewrites) {
     const out = runGuard('run_command', { CommandLine: input });
@@ -45,13 +57,14 @@ try {
     assert.equal(out.overwrite?.CommandLine, expected, `Rewrite mismatch for "${input}"`);
   }
 
-  // 2. Compound, already-wrapped, --watch, --fix, and ZEROBURN_NO_REWRITE=1 stay untouched
+  // 2. Pipes, redirects, already-wrapped, --watch, --fix, and ZEROBURN_NO_REWRITE=1 stay untouched
   const passthroughs = [
     'node .agents/scripts/quiet-cli.mjs unit',
     'npx vitest run --watch',
     'npx eslint --fix src',
-    'npx tsc --noEmit && echo done',
+    'pnpm lint --fix',
     'npx vitest run | head -n 20',
+    'npx tsc --noEmit > /tmp/tsc.log',
   ];
   for (const cmd of passthroughs) {
     const out = runGuard('run_command', { CommandLine: cmd });

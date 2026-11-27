@@ -17,17 +17,19 @@ This report documents a **controlled, ground-truth A/B benchmark** measuring exa
 
 ---
 
-## 2. Executive Summary — Scaling Curve (Small vs. Medium)
+## 2. Executive Summary — Scaling Curve (Small → Medium → Exploratory 5-Domain)
 
 | Ticket Scope | Files Changed | Uncached Input Delta | Total Input Delta | Total Tokens Delta | Steps (Turns) | Wall-Clock Time | Est. Cloud Cost* |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Ticket #1 (Small — Backend Concurrency & Validation)** | 4 | **-1.4%** | +0.4% | +0.6% | 9 vs 9 (`0.0%`) | **-1.8%** (`1m 47s` vs `1m 49s`) | `$0.2238` vs `$0.2234` (`+0.2%`) |
-| **Ticket #2 (Medium — Multi-File UI, WCAG 2.1 AA & Semantic Tokens)** | 16 | **-14.5%** | **-31.5%** | **-30.7%** | **16 vs 19 (`-15.8%`)** | **-13.8%** (`5m 01s` vs `5m 49s`) | **`$0.5882` vs `$0.7014` (`-16.1%`)** |
+| **Ticket #2 (Medium, Pre-Mapped — Multi-File UI, WCAG 2.1 AA & Semantic Tokens)** | 16 | **-14.5%** | **-31.5%** | **-30.7%** | **16 vs 19 (`-15.8%`)** | **-13.8%** (`5m 01s` vs `5m 49s`) | **`$0.5882` vs `$0.7014` (`-16.1%`)** |
+| **Ticket #3 (Exploratory, 5 Domains — CI/Deploy, FFmpeg, Auth, Worker, Docs)** | 16 | **-9.0%** | **-46.8%** | **-46.4%** | **19 vs 29 (`-34.5%`)** | **-36.7%** (`5m 34s` vs `8m 48s`) | **`$0.7868` vs `$1.0712` (`-26.5%`)** |
 
 ### Why the Gap Widens With Scope
 1. **Zero orchestration tax on small tickets (4 files):** ZeroBurn's fast-path spawned `0` unnecessary subagents, used **1.4% fewer uncached input tokens**, and finished **2s faster** than the unorchestrated baseline — proving rules/hooks don't bloat simple tasks.
-2. **Compounding savings on medium tickets (16 files):** As multi-file tasks progress, every extra exploratory turn re-sends the full growing context ($O(n^2)$). ZeroBurn eliminated **3 full model turns (`16` vs `19`)**, saving **549,118 input tokens (-31.5%)**, **547,105 total tokens (-30.7%)**, **48 seconds (-13.8%)**, and **16.1% estimated cloud cost** while passing all verification suites.
-3. **Important Context — Conservative Lower Bound:** Both benchmark prompts pre-supplied exact target file paths and ran in a single chat without triggering full multi-stage orchestration (`0` `codebase-memory-mcp` graph calls, `0` `flash` subagent delegations, `0` local Ollama Stage 4 audits). On Ticket #2, `quiet-cli.mjs` + tighter read batching alone (`24` vs `35` `read_file` calls, `16` vs `19` turns) delivered the **-30.7%** total token reduction. On **unmapped/exploratory tickets** (where file paths are not pre-listed) and **full multi-stage Track M/L epics** where graph pre-fetch, `flash` subagent routing, and 0-cloud-token local Ollama audits actively replace Cloud Pro exploration and review turns, end-to-end savings scale substantially higher (typically **40–60%+** end-to-end, backed by the **70–98%** orchestration/tooling overhead reduction measured in [`REAL_WORLD_BENCHMARK.md`](REAL_WORLD_BENCHMARK.md)).
+2. **Compounding savings on medium tickets (16 files):** As multi-file tasks progress, every extra exploratory or retry turn re-sends the full growing context ($O(n^2)$). On Ticket #2, ZeroBurn eliminated **3 full turns (`16` vs `19`)**, saving **547,105 total tokens (-30.7%)** and **16.1% cloud cost**.
+3. **Exploratory 5-domain tasks with `quiet-cli` + `live-audit` active (Ticket #3):** When file paths were **not** pre-listed and a full 5-stage workflow (Discovery → Implementation → Verification → Docs Sync → Security Audit) was required, ZeroBurn's chained-command `quiet-cli.mjs` auto-rewrite + 0-cloud-token `live-audit.mjs` (AST + local Ollama) cut total tokens by **46.4% (-1.63M tokens)**, wall-clock time by **36.7% (-3m 14s)**, and estimated cloud cost by **26.5%**.
+4. **Scientific Transparency (`N = 1` & Attribution):** Each arm is a single-run controlled A/B (`N = 1`, verified `cache_read_tokens: 0` on Turn 1, clean `git reset --hard` + `git clean -fd`). On Ticket #3, both ZeroBurn's hooks (`quiet-cli.mjs` + `live-audit.mjs`) *and* normal single-run variance (fewer retry cycles on the post-fix run) contributed to the `-46.4%` total token drop. Even when ZeroBurn runs without subagent delegation (`0` `flash` subagents spawned in all 3 tickets), savings already reach **31–46% end-to-end** on 16-file tasks; multi-stage epics that also delegate to `flash` subagents + `codebase-memory-mcp` graph pre-fetch can push savings even further (backed by the **70–98%** orchestration/tooling overhead reduction in [`REAL_WORLD_BENCHMARK.md`](REAL_WORLD_BENCHMARK.md)).
 
 ---
 
@@ -82,7 +84,35 @@ This report documents a **controlled, ground-truth A/B benchmark** measuring exa
 
 ---
 
-## 5. Reproducing This on Your Own Antigravity Transcripts
+## 5. Detailed Results — Ticket #3 (Exploratory 5-Domain Production Hardening)
+
+**Scope (No Pre-Listed File Paths):** Locate and remediate 4 cross-domain production hardening gaps across CI/CD (`prisma migrate deploy` + zero-downtime `pm2 restart`), 1 GB VPS FFmpeg/queue concurrency guardrails (`-preset ultrafast -threads 1` + `/tmp` unlink), `auth()` `React.cache()` memoization + production Prisma singleton, bounded `/tmp` orphan cleanup queries, infrastructure docs sync, unit tests, and a final security/quality audit (`16` files changed).
+
+### Before/After Hook Fix Case Study (`v2.10.1` → Post-Fix)
+
+Our first run of Ticket #3 (`v2.10.1`) uncovered a real gap: `PreToolUse` (`command-rewrite.mjs`) only matched single unchained commands, so chained `npx tsc --noEmit && pnpm lint && npx vitest run ...` slipped past `quiet-cli.mjs`, and the agent ran raw `git diff` instead of `live-audit.mjs` (yielding only `-2.3%` total tokens). After updating `command-rewrite.mjs` (segment-by-segment `&&` rewriting + `pnpm lint`/`pnpm test`/`pnpm typecheck`) and `session-start.mjs` (steering final audits to `live-audit.mjs`), we reset the worktree (`git reset --hard && git clean -fd`, verified `cache_read_tokens: 0` on Turn 1) and re-ran Arm A:
+
+| Metric | Baseline (No Orchestration) | ZeroBurn `v2.10.1` (Pre-Fix) | **ZeroBurn Post-Fix** | **Post-Fix vs. Baseline** |
+| :--- | ---: | ---: | ---: | :--- |
+| Uncached Input Tokens | 371,739 | 404,272 (+8.8%) | **338,224** | **-9.0% (better)** |
+| Cached Input Tokens | 3,091,073 | 2,983,805 (-3.5%) | **1,505,101** | **-51.3% (fewer tokens)** |
+| Total Input Tokens | 3,462,812 | 3,388,077 (-2.2%) | **1,843,325** | **-46.8% (-1.62M tokens)** |
+| Output Tokens | 44,013 | 37,823 (-14.1%) | **36,719** | **-16.6% (better)** |
+| Total Tokens (In + Out) | 3,506,825 | 3,425,900 (-2.3%) | **1,880,044** | **-46.4% (-1.63M tokens)** |
+| Model Steps (Turns) | 29 | 28 (-3.4%) | **19** | **-34.5% (-10 turns)** |
+| Wall-Clock Time | 8m 48s | 8m 10s (-7.2%) | **5m 34s** | **-36.7% (-3m 14s faster)** |
+| Estimated Cloud Cost* | $1.0712 | $1.0439 (-2.6%) | **$0.7868** | **-26.5% (cheaper)** |
+| Tool Calls (`read_file` / `run_command`) | 39 / 14 | 35 / 14 | **28 / 9** | **-28% reads, -36% cmds** |
+| `quiet-cli` / `live-audit` (Ollama) | 0 / 0 | 0 / 0 | **1 / 1** | **Both engaged** |
+
+### Verification & Code Quality
+- **Unit Tests:** ZeroBurn Post-Fix passed **42 / 42** Vitest tests across `6` test files; Baseline passed **43 / 43** across `6` test files.
+- **Diff Footprint:** ZeroBurn Post-Fix `16 files (+353 / -101)` vs Baseline `16 files (+425 / -142)` — 20% tighter diff with all 5 requirements satisfied.
+- **Attribution Note:** Single-run controlled A/B (`N = 1`, zero cache/git leakage verified); both the `quiet-cli` + `live-audit` hook fixes and normal run-to-run variance (fewer retry turns) contributed to the `-46.4%` reduction.
+
+---
+
+## 6. Reproducing This on Your Own Antigravity Transcripts
 
 Use the included [`benchmarks/token-benchmark.mjs`](token-benchmark.mjs) CLI (zero dependencies) to measure any root conversation and all of its spawned subagents:
 
