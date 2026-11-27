@@ -5,6 +5,23 @@ The canonical version is stored in [`.agents/plugins/zeroburn/plugin.json`](.age
 
 ---
 
+## [2.11.0] - 2026-11-27
+
+### Added
+- **Exact Antigravity Transcript Benchmark CLI (`benchmarks/token-benchmark.mjs`):**
+  - Zero-dependency CLI (`analyze` / `compare`) that recursively parses Antigravity `transcript.jsonl` logs across a root conversation and all spawned subagents to compute ground-truth uncached input, cached input, output tokens, model steps, wall-clock duration, and estimated cloud cost.
+- **Controlled End-to-End A/B Benchmark Report (`benchmarks/END_TO_END_AB_BENCHMARK.md`):**
+  - Documents controlled A/B results across 3 real production tickets (Small 4-file `0%` tax, Medium 16-file `-30.7%` total tokens / `-16.1%` cost, Exploratory 5-Domain 16-file `-46.4%` total tokens / `-36.7%` wall-clock / `-26.5%` cost).
+
+### Improved
+- **Chained `&&` & `pnpm` Command Auto-Rewrite (`.agents/hooks/command-rewrite.mjs`, `benchmarks/test-pre-tool-guard.mjs`):**
+  - Splits pure `&&` chains segment-by-segment so chained verification commands (`npx tsc --noEmit && pnpm lint && npx vitest run ...`, `npx tsc --noEmit && pnpm lint && pnpm test`) automatically receive 1-line `quiet-cli.mjs` receipts while preserving safe passthrough for pipes (`|`), redirects (`>`), semicolons (`;`), subshells, `--fix`, and `--watch`.
+  - Adds rewrite support for `pnpm lint`, `pnpm test`, and `pnpm typecheck`.
+- **Stronger `SessionStart` Orchestration Steering (`.agents/hooks/session-start.mjs`):**
+  - Explicitly steers Discovery to `codebase-memory-mcp` before `rg`/`ls`/`find`, Verification to `quiet-cli.mjs`, and Final Diff Audits to `node .agents/scripts/live-audit.mjs` (0-token AST + local Ollama) instead of dumping raw `git diff` into cloud context.
+
+---
+
 ## [2.10.1] - 2026-11-25
 
 ### Fixed

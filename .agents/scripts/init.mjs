@@ -57,7 +57,7 @@ function loadPluginVersion(cwd) {
       }
     }
   }
-  return '2.10.1';
+  return '2.11.0';
 }
 
 const UPSTREAM_REPO = process.env.ZEROBURN_UPSTREAM_REPO || 'thoufeeque22/zeroburn';

@@ -299,7 +299,7 @@ function loadPluginVersion(cwd) {
       }
     }
   }
-  return '2.10.1';
+  return '2.11.0';
 }
 
 function main() {

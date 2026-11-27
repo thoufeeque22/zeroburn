@@ -88,11 +88,11 @@ This report documents a **controlled, ground-truth A/B benchmark** measuring exa
 
 **Scope (No Pre-Listed File Paths):** Locate and remediate 4 cross-domain production hardening gaps across CI/CD (`prisma migrate deploy` + zero-downtime `pm2 restart`), 1 GB VPS FFmpeg/queue concurrency guardrails (`-preset ultrafast -threads 1` + `/tmp` unlink), `auth()` `React.cache()` memoization + production Prisma singleton, bounded `/tmp` orphan cleanup queries, infrastructure docs sync, unit tests, and a final security/quality audit (`16` files changed).
 
-### Before/After Hook Fix Case Study (`v2.10.1` → Post-Fix)
+### Before/After Hook Fix Case Study (`v2.10.1` → `v2.11.0`)
 
-Our first run of Ticket #3 (`v2.10.1`) uncovered a real gap: `PreToolUse` (`command-rewrite.mjs`) only matched single unchained commands, so chained `npx tsc --noEmit && pnpm lint && npx vitest run ...` slipped past `quiet-cli.mjs`, and the agent ran raw `git diff` instead of `live-audit.mjs` (yielding only `-2.3%` total tokens). After updating `command-rewrite.mjs` (segment-by-segment `&&` rewriting + `pnpm lint`/`pnpm test`/`pnpm typecheck`) and `session-start.mjs` (steering final audits to `live-audit.mjs`), we reset the worktree (`git reset --hard && git clean -fd`, verified `cache_read_tokens: 0` on Turn 1) and re-ran Arm A:
+Our first run of Ticket #3 (`v2.10.1`) uncovered a real gap: `PreToolUse` (`command-rewrite.mjs`) only matched single unchained commands, so chained `npx tsc --noEmit && pnpm lint && npx vitest run ...` slipped past `quiet-cli.mjs`, and the agent ran raw `git diff` instead of `live-audit.mjs` (yielding only `-2.3%` total tokens). After updating `command-rewrite.mjs` (segment-by-segment `&&` rewriting + `pnpm lint`/`pnpm test`/`pnpm typecheck`) and `session-start.mjs` (steering final audits to `live-audit.mjs`) for **`v2.11.0`**, we reset the worktree (`git reset --hard && git clean -fd`, verified `cache_read_tokens: 0` on Turn 1) and re-ran Arm A:
 
-| Metric | Baseline (No Orchestration) | ZeroBurn `v2.10.1` (Pre-Fix) | **ZeroBurn Post-Fix** | **Post-Fix vs. Baseline** |
+| Metric | Baseline (No Orchestration) | ZeroBurn `v2.10.1` (Pre-Fix) | **ZeroBurn `v2.11.0`** | **`v2.11.0` vs. Baseline** |
 | :--- | ---: | ---: | ---: | :--- |
 | Uncached Input Tokens | 371,739 | 404,272 (+8.8%) | **338,224** | **-9.0% (better)** |
 | Cached Input Tokens | 3,091,073 | 2,983,805 (-3.5%) | **1,505,101** | **-51.3% (fewer tokens)** |

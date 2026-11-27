@@ -33,10 +33,10 @@ def _load_plugin_version() -> str:
         if os.path.isfile(candidate):
             try:
                 with open(candidate, "r", encoding="utf-8") as fh:
-                    return str(json.load(fh).get("version") or "2.10.1")
+                    return str(json.load(fh).get("version") or "2.11.0")
             except Exception:
                 pass
-    return "2.10.1"
+    return "2.11.0"
 
 
 def _load_project_config() -> dict:

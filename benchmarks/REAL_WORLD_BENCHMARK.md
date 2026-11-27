@@ -1,6 +1,8 @@
-# Real-World Verified Benchmark (`directly.social` Production Repo)
+# Real-World Tooling & Context Overhead Benchmark (`directly.social` Production Repo)
 
-This document records a 100% reproducible, measured A/B comparison between a **Standard Multi-Agent Loop (Vanilla Subagent)** and the **ZeroBurn v2.5.0 Harness** on the production **[directly.social](https://directly.social)** codebase.
+> **Looking for full end-to-end ticket token & cost A/B results?** See [`benchmarks/END_TO_END_AB_BENCHMARK.md`](END_TO_END_AB_BENCHMARK.md) for ground-truth `transcript.jsonl` comparisons across Small (4-file), Medium (16-file), and Exploratory 5-Domain (16-file) tickets (`0%` tax → `-30.7%` → `-46.4%` total tokens). This document measures **stage-by-stage orchestration & CLI overhead**.
+
+This document records a 100% reproducible, measured A/B comparison between a **Standard Multi-Agent Loop (Vanilla Subagent)** and the **ZeroBurn Harness** on the production **[directly.social](https://directly.social)** codebase.
 
 ## 1. Target Repository Profile
 - **Stack:** Next.js App Router + TypeScript + Prisma + Vitest + Playwright
