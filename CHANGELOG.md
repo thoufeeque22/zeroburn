@@ -5,6 +5,22 @@ The canonical version is stored in [`.agents/plugins/zeroburn/plugin.json`](.age
 
 ---
 
+## [2.11.1] - 2026-11-27
+
+### Improved
+- **Single-Chat Default for Track S & Standard Track M (`.agents/AGENTS.md`, `.agents/base/ORCHESTRATION.md`):**
+  - Defaults bounded Track S and standard Track M tickets (`<= 12–15` files, clear spec, 1 PR) to single-chat mode (`0` subagents) using `codebase-memory-mcp`, `quiet-cli.mjs`, and `live-audit.mjs` to eliminate subagent cold-start tax.
+- **0-Token UI-Diff Gate for Playwright & Maestro (`.agents/base/ORCHESTRATION.md`, `.agents/plugins/zeroburn/agents/qa-agent.md`):**
+  - Skips booting a dev server or running Playwright/Maestro whenever `git diff --name-only` touches zero frontend UI files (`src/components/**`, `src/app/**/page.tsx`, `src/app/**/layout.tsx`, `src/theme/**`, `*.css`), and runs only targeted route specs when UI files change.
+- **Domain-Clustered 4–12 File Triage Batching (`.agents/plugins/zeroburn/agents/project-agent.md`, `.agents/AGENTS.md`):**
+  - Clusters incidental observations by domain/file area into cohesive Track M GitHub issues targeting 4–12 files per ticket at triage time only, never pulling unrelated open tickets into an active PR mid-coding.
+
+### Fixed
+- **Clean `--upgrade` Clone Output (`.agents/scripts/init.mjs`):**
+  - Silences the `git clone` detached-HEAD advisory banner during `node .agents/scripts/init.mjs --upgrade` via `-c advice.detachedHead=false`.
+
+---
+
 ## [2.11.0] - 2026-11-27
 
 ### Added

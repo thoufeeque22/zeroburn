@@ -41,10 +41,7 @@ const PROSE_PATTERNS = [
 ];
 
 function loadPluginVersion(cwd) {
-  for (const rel of [
-    '.agents/plugins/zeroburn/plugin.json',
-    '.agents/plugins/zeroburn/plugin.json',
-  ]) {
+  for (const rel of ['.agents/plugins/zeroburn/plugin.json']) {
     const p = path.join(cwd, rel);
     // eslint-disable-next-line security/detect-non-literal-fs-filename
     if (fs.existsSync(p)) {
@@ -57,7 +54,7 @@ function loadPluginVersion(cwd) {
       }
     }
   }
-  return '2.11.0';
+  return '2.11.1';
 }
 
 const UPSTREAM_REPO = process.env.ZEROBURN_UPSTREAM_REPO || 'thoufeeque22/zeroburn';
@@ -222,7 +219,7 @@ function main() {
       process.stdout.write(`[zeroburn upgrade] Found latest release: ${latestTag}. Downloading...\n`);
       const tmpDir = path.join(os.tmpdir(), `zb-upgrade-${Date.now()}`);
       // eslint-disable-next-line sonarjs/no-os-command-from-path
-      execFileSync('git', ['clone', '--depth', '1', '--branch', latestTag, `https://github.com/${UPSTREAM_REPO}`, tmpDir], {
+      execFileSync('git', ['-c', 'advice.detachedHead=false', 'clone', '--depth', '1', '--branch', latestTag, `https://github.com/${UPSTREAM_REPO}`, tmpDir], {
         stdio: 'inherit',
         timeout: 20000,
       });
