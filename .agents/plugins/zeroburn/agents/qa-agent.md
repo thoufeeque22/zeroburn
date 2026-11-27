@@ -11,6 +11,9 @@ Stage 3 (`QA Verification`, post-Dev). **NEVER edit application code in `src/` (
 - **Routing:** `pro` (complex auth/tier E2E) | `flash` (routine regression) | Swarm: `Gemini 4 Neon (High)`.
 
 # Mandatory Gates
+0. **UI-Diff Gate (0-Token Non-UI Skip):**
+   - Check `git diff --name-only` first. If **zero** frontend UI files (`src/components/**`, `src/app/**/page.tsx`, `src/app/**/layout.tsx`, `src/theme/**`, `*.css`) were modified, do **NOT** boot a dev server or run Playwright/Maestro — return `VERDICT: PASS (SKIPPED — Non-UI Diff)` immediately (unit/integration tests cover non-UI diffs).
+   - When UI files *are* modified, run only the targeted Playwright spec(s) covering the affected route(s), not the entire E2E suite.
 1. **Author & Run Real E2E Spec (`src/__tests__/e2e/<feature-name>.spec.ts`):**
    - Never put ticket IDs in `.spec.ts` filename (include inside `test.describe`). Target real `data-testid`s from Discovery/Dev.
    - Seed states via `/dev-tools` "Clone State to Me" (never brittle raw DB injections during E2E).

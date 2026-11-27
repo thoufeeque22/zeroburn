@@ -19,10 +19,10 @@ Orthogonal issue manager (Issue-First init, Track L Epic Sub-Issue splitting, & 
    - *(NEVER use legacy `roadmap` label.)*
 3. **Track L Epic Sub-Issue Splitting:** When Discovery proposes 2–4 vertical slices for an Epic, create each child issue and link it natively via:
    `./scripts/link-gh-subissue.sh "<owner>" "<repo>" <project-number> <PARENT_NUM> <CHILD_NUM> <PRIORITY>`
-4. **Incidental Resolution (Automated Verification & Batch Triage):**
+4. **Incidental Resolution (Automated Verification & Domain-Clustered Batch Triage):**
    - Run `node .agents/scripts/triage-observations.mjs check` to inspect pending observations against existing GitHub issues and code state on `main`.
    - Run `node .agents/scripts/triage-observations.mjs prune` to automatically remove already-resolved and already-tracked entries.
-   - For remaining actionable items, group related debt by domain/file area into **cohesive batched GitHub issues** (avoiding 1-to-1 ticket spam), apply mandatory labels + Project Board #4 priority, record the mapping in `ARTIFACT_DIR/pm_report.md`, and reset `OBSERVATIONS_FILE` to `[]`.
+   - For remaining actionable items, cluster related debt by domain/file area into **cohesive Track M GitHub issues targeting 4–12 files per ticket** (amortizing cold-start & verification overhead without creating 1-file spam or >15-file monoliths; never batch unrelated open tickets mid-PR during coding), apply mandatory labels + Project Board #4 priority, record the mapping in `ARTIFACT_DIR/pm_report.md`, and reset `OBSERVATIONS_FILE` to `[]`.
 5. **Board Sync:** `./scripts/set-gh-project-priority.sh "<owner>" <project-number> <ISSUE_URL> <critical|high|medium|low>`
 6. **Artifact Update:** `write_file` -> `ARTIFACT_DIR/pm_report.md` (`RequestFeedback: true` only on `BLOCKED`).
 
