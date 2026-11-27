@@ -20,7 +20,7 @@ function loadPluginVersion(cwd) {
       }
     }
   }
-  return '2.11.0';
+  return '2.11.1';
 }
 
 function loadProjectConfig(cwd) {
