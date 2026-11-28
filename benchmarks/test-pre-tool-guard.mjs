@@ -105,6 +105,12 @@ try {
   assert.equal(denyPush.decision, 'deny');
   const denyNpm = runGuard('run_command', { CommandLine: 'npm install lodash' });
   assert.equal(denyNpm.decision, 'deny');
+  const denyFindDump = runGuard('run_command', { CommandLine: 'find src -type f' });
+  assert.equal(denyFindDump.decision, 'deny', 'Bare find src dump should be blocked');
+  const denyLsR = runGuard('run_command', { CommandLine: 'ls -laR src/' });
+  assert.equal(denyLsR.decision, 'deny', 'Recursive ls -R dump should be blocked');
+  const allowNarrowFind = runGuard('run_command', { CommandLine: 'find src -maxdepth 2 -name "*.ts"' });
+  assert.equal(allowNarrowFind.decision, 'allow', 'Narrow find with -maxdepth 2 -name should be allowed');
 
   console.log('✅ All pre-tool-guard tests PASSED (auto-rewrite, passthroughs, large read guard, safety guards)');
 } finally {

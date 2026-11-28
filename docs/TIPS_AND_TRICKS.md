@@ -28,9 +28,10 @@ start orchestration workflow on https://github.com/owner/repo/issues/1043
 2. **Deterministic Inspection in Stage 0:** In Stage 0, the orchestrator inspects the issue via `gh issue view` and runs `git branch -a | grep <epic-id>` to automatically locate the active epic branch (`epic/<epic-id>-<slug>`).
 3. **Automatic Worktree / Branch Creation:** The orchestrator branches `feature/<slice-id>-<slug>` directly from `epic/<epic-id>-<slug>` without you needing to explain the topology.
 
-### When to Use `/compact`
+### When to Use `/compact` (and Model-Switch Cache Rule)
 - If a ticket requires iterative bug-fixing or extended troubleshooting exceeding **15–20 tool turns**, trigger the `/compact` slash command.
 - `/compact` condenses prior transcript logs and test dumps into a terse checkpoint artifact, immediately reclaiming 50–70% of your active context window.
+- **Always `/compact` BEFORE switching models mid-ticket:** Prompt caches (`cache_read_tokens`, billed at ~10%) are **per-model**. Switching models mid-conversation on a 100k-token chat resets `cache_read_tokens` to `0` and bills 100% uncached input; compacting first saves 50k–150k uncached tokens.
 
 ---
 
@@ -72,14 +73,9 @@ node .agents/scripts/quiet-cli.mjs lint
 node .agents/scripts/quiet-cli.mjs unit
 node .agents/scripts/quiet-cli.mjs pr-check
 node .agents/scripts/quiet-cli.mjs api-map
-node .agents/scripts/quiet-cli.mjs exec --query "error term" <cmd> [args...]
-node .agents/scripts/quiet-cli.mjs search "error term" [--source <id>]
-node .agents/scripts/quiet-cli.mjs stats
 ```
 - **On Success:** Emits exactly 1 line (~15 tokens): `[quiet-cli] unit: PASS (Test Files 131 passed, Tests 902 passed)`.
-- **On Failure:** Capped strictly at 35 lines. If failures exceed 12 lines, the local Ollama **Judgment Kernel** parses the trace in **0 cloud tokens** and outputs a 3-line root-cause diagnosis. Outputs `>=4 KB` are also indexed into a local `node:sqlite` FTS5 spillover store (`quiet-store.mjs`) so you can query specific error terms with `quiet-cli.mjs search` without dumping the full log.
-- **Automatic Enforcement (`PreToolUse`):** `pre-tool-guard.mjs` automatically rewrites raw `vitest run`, `tsc --noEmit`, `eslint`, and `pnpm pr-check` calls into `quiet-cli.mjs`, and blocks unbounded `read_file` calls on source files `>24 KB` without `StartLine`/`EndLine` so agents use `codebase-memory-mcp` or targeted line ranges.
-- **Live Telemetry:** Run `node .agents/scripts/quiet-cli.mjs stats` anytime to see cumulative bytes and estimated tokens kept out of context.
+- **On Failure:** Capped strictly at 35 lines. If failures exceed 12 lines, the local Ollama **Judgment Kernel** parses the trace in **0 cloud tokens** and outputs a 3-line root-cause diagnosis.
 
 ---
 

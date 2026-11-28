@@ -5,6 +5,23 @@ The canonical version is stored in [`.agents/plugins/zeroburn/plugin.json`](.age
 
 ---
 
+## [2.12.0] - 2026-11-28
+
+### Added
+- **Diff-Scoped Verification Mode & Incremental `tsc` (`quiet-cli.mjs changed`):**
+  - Adds `node .agents/scripts/quiet-cli.mjs changed` running `docs-parity`, incremental `tsc --noEmit --incremental --tsBuildInfoFile /tmp/zeroburn-tsc-<hash>.tsbuildinfo`, diff-scoped `eslint` (changed files only), and `vitest related --run --passWithNoTests` for 2–3s iterative verification loops without polluting the repo.
+- **Blind Repo-Tree Dump Context-Guard (`pre-tool-guard.mjs`):**
+  - Blocks bare `find src` / `find .` and recursive `ls -R` dumps that waste ~15k tokens per turn (allowing narrow `-maxdepth 2 -name` queries) and steers agents to `codebase-memory-mcp` or `REPO_MAP_DIGEST`.
+- **Issue `## Execution Hints`, `flash` Coordinate Pre-Mapping & Creation-Time Epic Splitting (`project-agent.md`, `ORCHESTRATION.md`):**
+  - `project-agent` (`flash`) pre-maps exact `file:startLine-endLine` `## Target Coordinates` via `codebase-memory-mcp` and stamps `## Execution Hints` (`Track & Mode`, `QA Scope`, `Stage 1 Bypass`) into created issues, with fail-safe live `git diff` escalation in Stage 0.
+  - Clearly decomposable huge issues (>15 files) are split into Parent Epic + 2–4 Native Sub-Issues (4–12 files each) at ticket creation; architecturally ambiguous epics remain `Discovery-First Split`.
+- **Local Per-Ticket Spend Ledger (`benchmarks/token-benchmark.mjs log` & `history`):**
+  - Appends per-ticket token/turn/cost receipts to `os.tmpdir()/zeroburn-ctx/tickets.jsonl` and renders a historical spend summary table.
+- **Model-Switch `/compact` Cache Rule (`ORCHESTRATION.md`, `docs/TIPS_AND_TRICKS.md`):**
+  - Documents running `/compact` before switching models mid-ticket so per-model prompt caches don't reset to `0` and re-bill 100k+ uncached tokens.
+
+---
+
 ## [2.11.1] - 2026-11-27
 
 ### Improved

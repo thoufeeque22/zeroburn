@@ -10,6 +10,7 @@
  *   node .agents/scripts/quiet-cli.mjs tsc
  *   node .agents/scripts/quiet-cli.mjs lint [files...]
  *   node .agents/scripts/quiet-cli.mjs unit [test-files...]
+ *   node .agents/scripts/quiet-cli.mjs changed
  *   node .agents/scripts/quiet-cli.mjs pr-check
  *   node .agents/scripts/quiet-cli.mjs api-map
  *   node .agents/scripts/quiet-cli.mjs docs-parity
@@ -18,6 +19,7 @@
  *   node .agents/scripts/quiet-cli.mjs stats [--json] [--reset]
  *   node .agents/scripts/quiet-cli.mjs purge
  */
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -567,10 +569,68 @@ async function main() {
     process.exit(ok ? 0 : 1);
   }
 
+function getIncrementalTscArgs() {
+  const repoHash = crypto.createHash('sha1').update(process.cwd()).digest('hex').slice(0, 12);
+  const tsBuildInfo = path.join(os.tmpdir(), `zeroburn-tsc-${repoHash}.tsbuildinfo`);
+  return ['--incremental', '--tsBuildInfoFile', tsBuildInfo];
+}
+
+function getChangedFilesForScope() {
+  const files = new Set();
+  for (const args of [
+    ['diff', '--name-only', 'HEAD'],
+    ['diff', '--name-only', 'main...HEAD'],
+    ['ls-files', '--others', '--exclude-standard'],
+  ]) {
+    // eslint-disable-next-line sonarjs/no-os-command-from-path
+    const res = spawnSync('git', args, { encoding: 'utf8', timeout: 4000 });
+    if (res.status === 0 && res.stdout) {
+      for (const line of res.stdout.split('\n')) {
+        const p = line.trim();
+        // eslint-disable-next-line security/detect-non-literal-fs-filename
+        if (p && fs.existsSync(path.resolve(process.cwd(), p))) files.add(p);
+      }
+    }
+  }
+  return Array.from(files);
+}
+
+async function runChangedCheck() {
+  checkDocsParity();
+  const changed = getChangedFilesForScope();
+  const codeFiles = changed.filter((f) => /\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(f));
+  const srcFiles = codeFiles.filter((f) => f.startsWith('src/'));
+  if (codeFiles.length === 0) {
+    process.stdout.write('[quiet-cli] changed: PASS (0 JS/TS files changed — skipped tsc/lint/unit)\n');
+    return true;
+  }
+  const okDeps = checkDeclaredDependencies();
+  if (!okDeps) return false;
+  const okTsc = await runStep('tsc', 'npx', ['tsc', '--noEmit', '--pretty', 'false', ...getIncrementalTscArgs()]);
+  if (!okTsc) return false;
+  const okLint = await runStep('lint', 'npx', ['eslint', '--quiet', ...codeFiles]);
+  if (!okLint) return false;
+  if (srcFiles.length > 0) {
+    const okUnit = await runStep('unit', 'npx', [
+      'vitest',
+      'related',
+      ...srcFiles,
+      '--run',
+      '--passWithNoTests',
+      '--reporter=dot',
+      '--bail=1',
+    ]);
+    if (!okUnit) return false;
+  }
+  return true;
+}
+
   if (mode === 'tsc') {
     const okDeps = checkDeclaredDependencies();
     if (!okDeps) process.exit(1);
-    const ok = await runStep('tsc', 'npx', ['tsc', '--noEmit', '--pretty', 'false', ...rest]);
+    const hasCustomBuildInfo = rest.includes('--tsBuildInfoFile') || rest.includes('--noEmit') || rest.includes('-b');
+    const incArgs = hasCustomBuildInfo ? [] : getIncrementalTscArgs();
+    const ok = await runStep('tsc', 'npx', ['tsc', '--noEmit', '--pretty', 'false', ...incArgs, ...rest]);
     process.exit(ok ? 0 : 1);
   }
 
@@ -582,6 +642,11 @@ async function main() {
 
   if (mode === 'unit') {
     const ok = await runStep('unit', 'npx', ['vitest', 'run', '--reporter=dot', '--bail=1', ...rest]);
+    process.exit(ok ? 0 : 1);
+  }
+
+  if (mode === 'changed') {
+    const ok = await runChangedCheck();
     process.exit(ok ? 0 : 1);
   }
 
@@ -598,7 +663,7 @@ async function main() {
   }
 
   process.stderr.write(
-    `Unknown mode "${mode}". Use: tsc | lint | unit | pr-check | api-map | docs-parity | exec | search | stats | purge\n`
+    `Unknown mode "${mode}". Use: tsc | lint | unit | changed | pr-check | api-map | docs-parity | exec | search | stats | purge\n`
   );
   process.exit(1);
 }

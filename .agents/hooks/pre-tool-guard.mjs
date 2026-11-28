@@ -126,6 +126,9 @@ function checkCommand(args) {
   if (/\bssh\b[^\n]*next\s+build/.test(cmd)) {
     return 'Blocked: never run next build on the 1GB VPS. Build locally or in CI and use pnpm run deploy:vps.';
   }
+  if (/(?:^|[;&|]\s*)(?:find\s+(?:\.|src)\b(?![^\n]*-maxdepth\s+[12]\b)(?![^\n]*-name\b)|ls\s+-[a-zA-Z]*R[a-zA-Z]*\b)/.test(cmd)) {
+    return 'Blocked by Context-Guard: bare repo tree dumps (`find src` / `ls -R`) waste ~15k tokens. Use codebase-memory-mcp (`search_graph`), REPO_MAP_DIGEST, or a narrow `-maxdepth 2 -name` query instead.';
+  }
   return null;
 }
 

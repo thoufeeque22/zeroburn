@@ -455,12 +455,76 @@ function parseArgs(argv) {
   return { positional, flags };
 }
 
+function getDefaultLedgerPath() {
+  return path.join(os.tmpdir(), 'zeroburn-ctx', 'tickets.jsonl');
+}
+
+function appendTicketLedger(report, { ticket = 'unlabeled', track = 'M', ledgerPath = getDefaultLedgerPath() }) {
+  fs.mkdirSync(path.dirname(ledgerPath), { recursive: true });
+  const entry = {
+    ts: new Date().toISOString(),
+    ticket: String(ticket),
+    track: String(track).toUpperCase(),
+    convId: report.rootConvId,
+    subagents: report.subagentCount,
+    steps: report.modelSteps,
+    uncachedInput: report.uncachedInput,
+    cachedInput: report.cachedInput,
+    output: report.output,
+    totalTokens: report.totalTokens,
+    wallClockMs: report.wallClockMs,
+    estCostUsd: Number(report.estCostUsd.toFixed(4)),
+  };
+  fs.appendFileSync(ledgerPath, `${JSON.stringify(entry)}\n`, 'utf8');
+  return { ledgerPath, entry };
+}
+
+function formatTicketHistory(ledgerPath, limit = 20) {
+  if (!fs.existsSync(ledgerPath)) {
+    return `[token-benchmark] No ticket spend ledger yet at ${ledgerPath}.\n`;
+  }
+  const entries = fs
+    .readFileSync(ledgerPath, 'utf8')
+    .split('\n')
+    .filter((l) => l.trim())
+    .map((l) => {
+      try {
+        return JSON.parse(l);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+  if (entries.length === 0) return `[token-benchmark] Ticket spend ledger is empty.\n`;
+  const recent = entries.slice(-limit);
+  const rows = recent.map((e) => [
+    e.ticket,
+    e.track,
+    String(e.steps),
+    fmtNum(e.uncachedInput),
+    fmtNum(e.totalTokens),
+    fmtDuration(e.wallClockMs),
+    fmtUsd(e.estCostUsd),
+  ]);
+  const totalCost = entries.reduce((s, e) => s + (Number(e.estCostUsd) || 0), 0);
+  const avgTokens = entries.reduce((s, e) => s + (Number(e.totalTokens) || 0), 0) / entries.length;
+  return [
+    `=== ZeroBurn Ticket Spend Ledger (${entries.length} logged, showing last ${recent.length}) ===`,
+    renderMarkdownTable(['Ticket', 'Track', 'Steps', 'Uncached In', 'Total Tokens', 'Time', 'Est. Cost*'], rows),
+    ``,
+    `Aggregate: avg ${fmtNum(avgTokens)} tokens/ticket | cumulative est. cost ${fmtUsd(totalCost)} (${ledgerPath})`,
+    ``,
+  ].join('\n');
+}
+
 function printUsageAndExit(code = 1) {
   process.stderr.write(
     [
       'Usage:',
       '  node .agents/scripts/token-benchmark.mjs analyze <conv-id> [--brain-dir <dir>] [--json]',
       '  node .agents/scripts/token-benchmark.mjs compare <zeroburn-conv-id> <baseline-conv-id> [--label "<title>"] [--brain-dir <dir>] [--out <markdown-path>]',
+      '  node .agents/scripts/token-benchmark.mjs log <conv-id> [--ticket "#1089"] [--track S|M|L] [--ledger <path>] [--brain-dir <dir>]',
+      '  node .agents/scripts/token-benchmark.mjs history [--limit 20] [--ledger <path>]',
       '',
     ].join('\n')
   );
@@ -487,6 +551,29 @@ function main() {
     } else {
       process.stdout.write(formatAnalyzeText(report));
     }
+    return;
+  }
+
+  if (cmd === 'log') {
+    const convId = positional[1];
+    if (!convId) printUsageAndExit(1);
+    const report = analyzeConversationTree(convId, brainDir);
+    const ledgerPath = flags.ledger ? path.resolve(String(flags.ledger)) : getDefaultLedgerPath();
+    const { entry } = appendTicketLedger(report, {
+      ticket: flags.ticket || convId.slice(0, 8),
+      track: flags.track || 'M',
+      ledgerPath,
+    });
+    process.stdout.write(
+      `[token-benchmark] Logged ${entry.ticket} (Track ${entry.track}): ${fmtNum(entry.totalTokens)} tokens, ${entry.steps} steps, ${fmtUsd(entry.estCostUsd)} -> ${ledgerPath}\n`
+    );
+    return;
+  }
+
+  if (cmd === 'history') {
+    const ledgerPath = flags.ledger ? path.resolve(String(flags.ledger)) : getDefaultLedgerPath();
+    const limit = Number(flags.limit) || 20;
+    process.stdout.write(formatTicketHistory(ledgerPath, limit));
     return;
   }
 
