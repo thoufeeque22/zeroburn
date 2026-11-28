@@ -54,7 +54,7 @@ Follow `Issue -> Branch/Worktree -> Triage -> Artifact`:
    - **Track S / Track M:**
      - Run `git rev-list --count HEAD ^origin/main`. If ahead, check `gh pr list --head $(git branch --show-current) --state all --json state,number`:
        - `MERGED` or `OPEN`: Safe to switch.
-       - `CLOSED` (unmerged) or **No PR found**, OR current branch has active WIP: **do NOT switch branches in place.** Create an isolated worktree from `main` (`git worktree add <path> -b <FEATURE_BRANCH_PATTERN> main`) or get explicit user permission first.
+       - `CLOSED` (unmerged) or **No PR found**, OR current branch has active WIP: **do NOT switch branches in place.** Create an isolated worktree from `main` (`git worktree add <path> -b <FEATURE_BRANCH_PATTERN> main`) and ensure gitignored `.agents`, `.env`, and `node_modules` are symlinked from the main repo root (automatic when `.git/hooks/post-checkout` is installed), or get explicit user permission first.
      - Otherwise: `git checkout main && git pull`, then `git checkout -b <FEATURE_BRANCH_PATTERN>` (or switch to existing).
    - **Track L (Multi-Slice Epics — Master Feature Branch Protocol):**
      - Before launching slice implementations, initialize a shared master feature branch from `main`: `git checkout -b epic/<epic-id>-<slug> main && git push -u origin epic/<epic-id>-<slug>`.
